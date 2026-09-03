@@ -91,13 +91,25 @@
             </div>
 
             <div class="referral-section">
-                <h3>🔗 আপনার রেফারেল লিংক</h3>
-                <div class="referral-link-box">
-                    <input type="text" id="referralLink" readonly>
-                    <button onclick="copyReferralLink()" class="btn-secondary">কপি</button>
-                </div>
+    <h3>🔗 আপনার রেফারেল</h3>
+    
+    <!-- Referral Link -->
+    <div class="referral-link-box">
+        <input type="text" id="referralLink" readonly>
+        <button onclick="copyReferralLink()" class="btn-secondary">📋 লিংক কপি</button>
+    </div>
+    
+    <!-- Referral ID -->
+    <div class="referral-link-box" style="margin-top: 10px;">
+        <input type="text" id="referralId" readonly value="Loading...">
+        <button onclick="copyReferralId()" class="btn-secondary">📋 ID কপি</button>
+    </div>
+    
+    <div class="referral-stats" style="margin-top: 15px;">
+        <p>👥 মোট রেফারেল: <span id="referralCount">0 জন</span></p>
+        <p>💰 রেফারেল ইনকাম: <span id="referralIncome">0 DOGE</span></p>
+    </div>
             </div>
-        </div>
 
         <!-- Mining Tab -->
         <div id="miningContent" class="tab-content hidden">
