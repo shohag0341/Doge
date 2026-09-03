@@ -44,6 +44,7 @@ body {
     border-top: 5px solid var(--secondary-color);
     border-radius: 50%;
     animation: spin 1s linear infinite;
+    margin-bottom: 20px;
 }
 
 @keyframes spin {
@@ -72,6 +73,9 @@ body {
     justify-content: space-between;
     align-items: center;
     border-bottom: 2px solid var(--secondary-color);
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
 .user-info {
@@ -99,6 +103,7 @@ body {
     color: var(--text-primary);
     font-size: 24px;
     cursor: pointer;
+    padding: 5px;
 }
 
 /* Navigation */
@@ -162,6 +167,22 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.daily-checkin-card {
+    text-align: center;
+    background: linear-gradient(135deg, #16213e, #1a1a2e);
+    border: 2px solid var(--secondary-color);
+}
+
+.daily-checkin-card h3 {
+    font-size: 20px;
+    margin-bottom: 10px;
+}
+
+.daily-checkin-card p {
+    color: var(--text-secondary);
+    margin-bottom: 15px;
+}
+
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -184,6 +205,25 @@ body {
     color: var(--secondary-color);
 }
 
+.referral-section h3 {
+    margin-bottom: 15px;
+}
+
+.referral-link-box {
+    display: flex;
+    gap: 10px;
+}
+
+.referral-link-box input {
+    flex: 1;
+    padding: 10px;
+    border: 2px solid #333;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
 /* Buttons */
 .btn-primary {
     background: linear-gradient(135deg, var(--secondary-color), #f7c948);
@@ -200,6 +240,11 @@ body {
 .btn-primary:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(240, 185, 11, 0.4);
+}
+
+.btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .btn-secondary {
@@ -245,6 +290,16 @@ body {
     width: 90%;
     max-width: 400px;
     text-align: center;
+    animation: slideUp 0.3s ease;
+}
+
+.modal-content h2 {
+    margin-bottom: 10px;
+}
+
+.modal-content p {
+    color: var(--text-secondary);
+    margin-bottom: 15px;
 }
 
 .modal-content input {
@@ -265,6 +320,10 @@ body {
 }
 
 /* Mining Animation */
+.mining-container {
+    text-align: center;
+}
+
 .mining-animation {
     text-align: center;
     padding: 30px 0;
@@ -273,6 +332,7 @@ body {
 .doge-coin {
     font-size: 100px;
     animation: float 3s ease-in-out infinite;
+    cursor: pointer;
 }
 
 @keyframes float {
@@ -304,6 +364,34 @@ body {
     margin: 20px 0;
 }
 
+.mining-rate, .mining-total {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 15px;
+    border-radius: 10px;
+}
+
+.mining-stats h3 {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+}
+
+.mining-stats p {
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--secondary-color);
+}
+
+.upgrade-section {
+    margin-top: 30px;
+    text-align: left;
+}
+
+.upgrade-section h3 {
+    margin-bottom: 15px;
+    text-align: center;
+}
+
 /* Packages */
 .packages-grid {
     display: grid;
@@ -324,6 +412,15 @@ body {
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
 }
 
+.package-card h3 {
+    margin-bottom: 10px;
+}
+
+.package-card p {
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+}
+
 .package-price {
     font-size: 24px;
     font-weight: bold;
@@ -331,11 +428,24 @@ body {
     margin: 10px 0;
 }
 
+.package-card ul {
+    list-style: none;
+    padding: 0;
+    margin: 15px 0;
+    text-align: left;
+}
+
+.package-card ul li {
+    padding: 5px 0;
+    color: var(--text-secondary);
+}
+
 /* Tasks */
 .tasks-list {
     display: flex;
     flex-direction: column;
     gap: 15px;
+    margin-top: 20px;
 }
 
 .task-card {
@@ -351,15 +461,32 @@ body {
     margin-bottom: 5px;
 }
 
+.task-description {
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
 .task-reward {
     color: var(--secondary-color);
     font-weight: bold;
+    margin-bottom: 10px;
 }
 
 /* Wallet */
+.wallet-container {
+    text-align: center;
+}
+
 .wallet-balance {
     text-align: center;
     padding: 20px;
+}
+
+.wallet-balance h2 {
+    color: var(--text-secondary);
+    font-size: 16px;
+    margin-bottom: 10px;
 }
 
 .large-balance {
@@ -376,16 +503,41 @@ body {
     margin: 20px 0;
 }
 
+.wallet-section {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 15px;
+    border-radius: 10px;
+    margin: 15px 0;
+    text-align: left;
+}
+
+.wallet-section h3 {
+    margin-bottom: 10px;
+}
+
+.wallet-section input {
+    width: 100%;
+    padding: 12px;
+    margin: 10px 0;
+    border: 2px solid #333;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 16px;
+}
+
 .address-list {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    margin-top: 15px;
 }
 
 .address-item {
     background: rgba(255, 255, 255, 0.05);
     padding: 15px;
     border-radius: 10px;
+    margin-bottom: 10px;
 }
 
 .network-name {
@@ -399,11 +551,22 @@ body {
     word-break: break-all;
 }
 
+.transaction-history {
+    margin-top: 20px;
+    text-align: left;
+}
+
+.transaction-history h3 {
+    margin-bottom: 15px;
+    text-align: center;
+}
+
 /* Leaderboard */
 .leaderboard-filter {
     display: flex;
     gap: 10px;
-    margin-bottom: 20px;
+    margin: 20px 0;
+    overflow-x: auto;
 }
 
 .btn-filter {
@@ -414,6 +577,7 @@ body {
     color: var(--text-secondary);
     cursor: pointer;
     transition: all 0.3s;
+    white-space: nowrap;
 }
 
 .btn-filter.active {
@@ -469,6 +633,14 @@ body {
     border-bottom: 2px solid var(--secondary-color);
 }
 
+.admin-header button {
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-size: 24px;
+    cursor: pointer;
+}
+
 .admin-tabs {
     display: flex;
     background: var(--card-background);
@@ -485,6 +657,7 @@ body {
     cursor: pointer;
     border-radius: 10px;
     transition: all 0.3s;
+    font-size: 12px;
 }
 
 .admin-tab.active {
@@ -496,13 +669,17 @@ body {
     padding: 20px;
 }
 
-/* Responsive */
+/* Responsive Design */
 @media (max-width: 480px) {
     .stats-grid {
         grid-template-columns: 1fr;
     }
     
     .mining-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .wallet-actions {
         grid-template-columns: 1fr;
     }
 }
