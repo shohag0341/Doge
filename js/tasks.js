@@ -1,100 +1,272 @@
 // Tasks System
 let userTasks = [];
 let taskCompletionInProgress = false;
+const websiteTimers = {}; // taskId -> intervalId
 
-// ============ LOAD TASKS ============
+/**
+ * Load and render all pending tasks
+ */
 async function loadTasks() {
+    const container = document.getElementById('tasksList');
+    if (!container) return;
+
+    container.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">Loading...</p>';
+
     try {
-        const tasksContainer = document.getElementById('tasksList');
-        
-        // Show loading state
-        tasksContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">লোড হচ্ছে...</p>';
-        
-        // Get all active tasks
         const { data: tasks, error } = await db.getTasks();
-        
-        if (tasks && tasks.length > 0) {
-            // Get user's completed tasks
-            const { data: userTaskData, error: userTaskError } = await db.getUserTasks(currentUser.telegram_id);
-            userTasks = userTaskData ? userTaskData.map(t => t.task_id) : [];
-            
-            tasksContainer.innerHTML = '';
-            
-            tasks.forEach(task => {
-                const isCompleted = userTasks.includes(task.id);
-                
-                const taskCard = document.createElement('div');
-                taskCard.className = 'task-card';
-                taskCard.innerHTML = `
-                    <div class="task-title">${task.title}</div>
-                    ${task.description ? `<div class="task-description">${task.description}</div>` : ''}
-                    <div class="task-reward">💰 ${task.reward} DOGE</div>
-                    
-                    <div style="display: flex; gap: 10px; margin-top: 10px;">
-                        ${task.link ? `
-                            <a href="${task.link}" target="_blank" class="btn-primary" style="text-decoration: none; flex: 1;">
-                                🔗 কমপ্লিট করুন
-                            </a>
-                        ` : ''}
-                        
-                        <button onclick="verifyTask(${task.id})" 
-                                class="${isCompleted ? 'btn-secondary' : 'btn-primary'}"
-                                ${isCompleted ? 'disabled' : ''}
-                                style="flex: 1;">
-                            ${isCompleted ? '✅ সম্পন্ন হয়েছে' : '✓ Verify'}
-                        </button>
-                    </div>
-                `;
-                
-                tasksContainer.appendChild(taskCard);
-            });
-            
-        } else {
-            tasksContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">কোনো টাস্ক নেই</p>';
+        if (error) throw error;
+
+        if (!tasks || tasks.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">No tasks available</p>';
+            return;
         }
-    } catch (error) {
-        console.error('Task loading error:', error);
-        document.getElementById('tasksList').innerHTML = 
-            '<p style="text-align: center; color: var(--danger-color);">টাস্ক লোড করতে সমস্যা হয়েছে</p>';
+
+        // Fetch completed task IDs for current user
+        const { data: userTaskData } = await db.getUserTasks(currentUser.telegram_id);
+        userTasks = userTaskData ? userTaskData.map(t => t.task_id) : [];
+
+        // Hide already completed tasks
+        const pendingTasks = tasks.filter(task => !userTasks.includes(task.id));
+
+        if (pendingTasks.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">All tasks completed 🎉</p>';
+            return;
+        }
+
+        container.innerHTML = '';
+
+        pendingTasks.forEach(task => {
+            const card = document.createElement('div');
+            card.className = 'task-card';
+            card.id = `task-card-${task.id}`;
+
+            const taskType = task.type || 'website';
+
+            if (taskType === 'telegram') {
+                card.innerHTML = renderTelegramTask(task);
+            } else {
+                card.innerHTML = renderWebsiteTask(task);
+            }
+
+            container.appendChild(card);
+        });
+    } catch (err) {
+        console.error('Failed to load tasks:', err);
+        container.innerHTML = '<p style="text-align: center; color: var(--danger-color);">Failed to load tasks</p>';
     }
 }
 
-// ============ VERIFY TASK ============
-async function verifyTask(taskId) {
+/**
+ * Render HTML for a Telegram join task
+ */
+function renderTelegramTask(task) {
+    return `
+        <div class="task-title">${escapeHtml(task.title)}</div>
+        \( {task.description ? `<div class="task-description"> \){escapeHtml(task.description)}</div>` : ''}
+        <div class="task-reward">💰 ${task.reward} DOGE</div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 12px;">
+            ${task.link ? `
+                <a href="${escapeHtml(task.link)}" target="_blank" rel="noopener noreferrer"
+                   class="btn-primary" style="text-decoration: none; text-align: center;">
+                    📢 Join Group / Channel
+                </a>
+            ` : ''}
+
+            <button id="verify-btn-${task.id}"
+                    class="btn-primary"
+                    onclick="verifyTelegramTask(${task.id})">
+                ✓ Verify & Claim
+            </button>
+        </div>
+        <p style="font-size: 12px; color: var(--text-secondary); margin-top: 8px; text-align: center;">
+            Join first, then press Verify
+        </p>
+    `;
+}
+
+/**
+ * Render HTML for a website visit task
+ */
+function renderWebsiteTask(task) {
+    return `
+        <div class="task-title">${escapeHtml(task.title)}</div>
+        \( {task.description ? `<div class="task-description"> \){escapeHtml(task.description)}</div>` : ''}
+        <div class="task-reward">💰 ${task.reward} DOGE</div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 12px;">
+            ${task.link ? `
+                <a href="${escapeHtml(task.link)}" target="_blank" rel="noopener noreferrer"
+                   class="btn-primary" style="text-decoration: none; text-align: center;"
+                   onclick="startWebsiteTimer(${task.id})">
+                    🔗 Visit Website
+                </a>
+            ` : ''}
+
+            <button id="claim-btn-${task.id}"
+                    class="btn-secondary"
+                    disabled
+                    style="opacity: 0.5;"
+                    onclick="claimWebsiteTask(${task.id})">
+                ⏱ Wait 10 seconds...
+            </button>
+        </div>
+    `;
+}
+
+/**
+ * Start 10-second countdown after user clicks the website link
+ */
+function startWebsiteTimer(taskId) {
+    if (websiteTimers[taskId]) return; // already running
+
+    const btn = document.getElementById(`claim-btn-${taskId}`);
+    if (!btn) return;
+
+    let remaining = 10;
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    btn.textContent = `⏱ Wait ${remaining} seconds...`;
+
+    websiteTimers[taskId] = setInterval(() => {
+        remaining--;
+
+        if (remaining <= 0) {
+            clearInterval(websiteTimers[taskId]);
+            delete websiteTimers[taskId];
+
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.className = 'btn-primary';
+            btn.textContent = '✓ Claim Reward';
+        } else {
+            btn.textContent = `⏱ Wait ${remaining} seconds...`;
+        }
+    }, 1000);
+}
+
+/**
+ * Claim reward for a website visit task
+ */
+async function claimWebsiteTask(taskId) {
+    if (taskCompletionInProgress) return;
+
+    // Prevent claiming while timer is still running
+    if (websiteTimers[taskId]) {
+        showToast('⚠️ Please wait for the timer to finish');
+        return;
+    }
+
+    const btn = document.getElementById(`claim-btn-${taskId}`);
+    if (btn && btn.disabled) {
+        showToast('⚠️ Visit the website first and wait for the timer');
+        return;
+    }
+
+    await completeTask(taskId);
+}
+
+/**
+ * Verify Telegram group/channel membership via Edge Function
+ */
+async function verifyTelegramTask(taskId) {
     if (taskCompletionInProgress) return;
     taskCompletionInProgress = true;
-    
+
+    const btn = document.getElementById(`verify-btn-${taskId}`);
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Checking...';
+    }
+
     try {
-        // Check if already completed
-        if (userTasks.includes(taskId)) {
-            showToast('ℹ️ এই টাস্ক ইতিমধ্যে সম্পন্ন হয়েছে');
-            return;
-        }
-        
-        // Get task details
         const { data: task, error: taskError } = await supabase
             .from('tasks')
             .select('*')
             .eq('id', taskId)
             .eq('is_active', true)
             .single();
-        
-        if (!task) {
-            showToast('❌ টাস্ক পাওয়া যায়নি');
+
+        if (taskError || !task) {
+            showToast('❌ Task not found');
             return;
         }
-        
-        // Add task completion record
+
+        if (!task.chat_id) {
+            showToast('❌ Chat ID is missing for this task');
+            return;
+        }
+
+        // Call Supabase Edge Function
+        const { data, error } = await supabase.functions.invoke('verify-telegram-join', {
+            body: {
+                user_id: currentUser.telegram_id,
+                chat_id: task.chat_id,
+                task_id: taskId
+            }
+        });
+
+        if (error) {
+            console.error('Edge Function error:', error);
+            showToast('❌ Verification service unavailable');
+            return;
+        }
+
+        if (data?.is_member === true) {
+            await completeTask(taskId, true);
+        } else {
+            showToast('❌ You have not joined the group/channel yet');
+        }
+    } catch (err) {
+        console.error('Telegram verification failed:', err);
+        showToast('❌ Verification failed');
+    } finally {
+        taskCompletionInProgress = false;
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '✓ Verify & Claim';
+        }
+    }
+}
+
+/**
+ * Common function to complete a task and give reward
+ * @param {number} taskId
+ * @param {boolean} alreadyVerified - true when called from Telegram verification
+ */
+async function completeTask(taskId, alreadyVerified = false) {
+    if (taskCompletionInProgress && !alreadyVerified) return;
+    taskCompletionInProgress = true;
+
+    try {
+        if (userTasks.includes(taskId)) {
+            showToast('ℹ️ This task is already completed');
+            return;
+        }
+
+        const { data: task, error: taskError } = await supabase
+            .from('tasks')
+            .select('*')
+            .eq('id', taskId)
+            .eq('is_active', true)
+            .single();
+
+        if (taskError || !task) {
+            showToast('❌ Task not found');
+            return;
+        }
+
+        // Record completion
         await db.completeTask(currentUser.telegram_id, taskId);
-        
-        // Add reward to user's balance
+
+        // Add reward
         await db.updateMining(currentUser.telegram_id, task.reward);
-        
-        // Update user's completed tasks count
+
+        // Update completed tasks counter
         await db.updateUser(currentUser.telegram_id, {
             completed_tasks: (currentUser.completed_tasks || 0) + 1
         });
-        
+
         // Create transaction record
         await db.createTransaction({
             user_id: currentUser.telegram_id,
@@ -103,43 +275,65 @@ async function verifyTask(taskId) {
             status: 'completed',
             created_at: new Date().toISOString()
         });
-        
-        // Add to local completed tasks
+
         userTasks.push(taskId);
-        
-        showToast(`✅ টাস্ক সম্পন্ন! +${task.reward} DOGE`);
-        
-        // Refresh user data and tasks
+        showToast(`✅ Task completed! +${task.reward} DOGE`);
+
+        // Smoothly remove the card from UI
+        const card = document.getElementById(`task-card-${taskId}`);
+        if (card) {
+            card.style.transition = 'opacity 0.35s ease, transform 0.35s ease';
+            card.style.opacity = '0';
+            card.style.transform = 'translateX(24px)';
+
+            setTimeout(() => {
+                card.remove();
+
+                // Show empty state if no tasks left
+                if (document.querySelectorAll('.task-card').length === 0) {
+                    const list = document.getElementById('tasksList');
+                    if (list) {
+                        list.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">All tasks completed 🎉</p>';
+                    }
+                }
+            }, 350);
+        }
+
         await refreshUserData();
-        await loadTasks();
-        
-    } catch (error) {
-        console.error('Task verification error:', error);
-        showToast('❌ টাস্ক ভেরিফাই করা যায়নি');
+    } catch (err) {
+        console.error('Task completion error:', err);
+        showToast('❌ Failed to complete task');
     } finally {
         taskCompletionInProgress = false;
     }
 }
 
-// ============ LOAD USER TASKS ============
+/**
+ * Load user's completed task IDs (used on app init)
+ */
 async function loadUserTasks() {
     try {
-        const { data: tasks, error } = await db.getUserTasks(currentUser.telegram_id);
-        
-        if (tasks) {
-            userTasks = tasks.map(t => t.task_id);
-        }
-    } catch (error) {
-        console.error('User tasks loading error:', error);
+        const { data } = await db.getUserTasks(currentUser.telegram_id);
+        userTasks = data ? data.map(t => t.task_id) : [];
+    } catch (err) {
+        console.error('Failed to load user tasks:', err);
     }
 }
 
-// ============ CHECK TASK COMPLETION STATUS ============
 function isTaskCompleted(taskId) {
     return userTasks.includes(taskId);
 }
 
-// ============ GET COMPLETED TASKS COUNT ============
 function getCompletedTasksCount() {
     return userTasks.length;
 }
+
+/**
+ * Simple HTML escape to prevent XSS
+ */
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+                    }
