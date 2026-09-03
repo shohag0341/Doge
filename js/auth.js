@@ -127,7 +127,8 @@ function updateUserInfo(user) {
     document.getElementById('lifetimeMining').textContent = parseFloat(user.total_mined || 0).toFixed(2) + ' DOGE';
     
     // Update referral link
-    document.getElementById('referralLink').value = `https://t.me/YourBotUsername?start=ref_${user.telegram_id}`;
+    var botUsername = (SUPABASE_CONFIG && SUPABASE_CONFIG.botUsername) ? SUPABASE_CONFIG.botUsername : 'YourBotUsername';
+document.getElementById('referralLink').value = 'https://t.me/' + botUsername + '?start=ref_' + user.telegram_id;
     
     // Update referral ID
     document.getElementById('referralId').value = user.telegram_id.toString();
