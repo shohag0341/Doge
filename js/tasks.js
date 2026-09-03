@@ -1,14 +1,11 @@
 // Tasks System
 alert('tasks.js loaded successfully');
+
 let userTasks = [];
 let taskCompletionInProgress = false;
 const websiteTimers = {};
 
 async function loadTasks() {
-    const { data: tasks, error } = await db.getTasks();
-
-alert('Tasks: ' + JSON.stringify(tasks));   // ← এই লাইন
-alert('Error: ' + JSON.stringify(error));   // ← এই লাইন
     const container = document.getElementById('tasksList');
     if (!container) return;
 
@@ -29,7 +26,7 @@ alert('Error: ' + JSON.stringify(error));   // ← এই লাইন
         const pendingTasks = tasks.filter(task => !userTasks.includes(task.id));
 
         if (pendingTasks.length === 0) {
-            container.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">All tasks completed 🎉</p>';
+            container.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">All tasks completed</p>';
             return;
         }
 
@@ -38,7 +35,7 @@ alert('Error: ' + JSON.stringify(error));   // ← এই লাইন
         pendingTasks.forEach(task => {
             const card = document.createElement('div');
             card.className = 'task-card';
-            card.id = `task-card-${task.id}`;
+            card.id = 'task-card-' + task.id;
 
             const taskType = task.type || 'website';
 
@@ -57,60 +54,50 @@ alert('Error: ' + JSON.stringify(error));   // ← এই লাইন
 }
 
 function renderTelegramTask(task) {
-    return `
-        <div class="task-title">${escapeHtml(task.title)}</div>
-        \( {task.description ? `<div class="task-description"> \){escapeHtml(task.description)}</div>` : ''}
-        <div class="task-reward">💰 ${task.reward} DOGE</div>
-        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 12px;">
-            ${task.link ? `
-                <a href="${escapeHtml(task.link)}" target="_blank" rel="noopener noreferrer"
-                   class="btn-primary" style="text-decoration: none; text-align: center;">
-                    📢 Join Group / Channel
-                </a>
-            ` : ''}
-            <button id="verify-btn-\( {task.id}" class="btn-primary" onclick="verifyTelegramTask( \){task.id})">
-                ✓ Verify & Claim
-            </button>
-        </div>
-        <p style="font-size: 12px; color: var(--text-secondary); margin-top: 8px; text-align: center;">
-            Join first, then press Verify
-        </p>
-    `;
+    var html = '';
+    html += '<div class="task-title">' + escapeHtml(task.title) + '</div>';
+    if (task.description) {
+        html += '<div class="task-description">' + escapeHtml(task.description) + '</div>';
+    }
+    html += '<div class="task-reward">💰 ' + task.reward + ' DOGE</div>';
+    html += '<div style="display: flex; flex-direction: column; gap: 10px; margin-top: 12px;">';
+    if (task.link) {
+        html += '<a href="' + escapeHtml(task.link) + '" target="_blank" rel="noopener noreferrer" class="btn-primary" style="text-decoration: none; text-align: center;">📢 Join Group / Channel</a>';
+    }
+    html += '<button id="verify-btn-' + task.id + '" class="btn-primary" onclick="verifyTelegramTask(' + task.id + ')">✓ Verify & Claim</button>';
+    html += '</div>';
+    html += '<p style="font-size: 12px; color: var(--text-secondary); margin-top: 8px; text-align: center;">Join first, then press Verify</p>';
+    return html;
 }
 
 function renderWebsiteTask(task) {
-    return `
-        <div class="task-title">${escapeHtml(task.title)}</div>
-        \( {task.description ? `<div class="task-description"> \){escapeHtml(task.description)}</div>` : ''}
-        <div class="task-reward">💰 ${task.reward} DOGE</div>
-        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 12px;">
-            ${task.link ? `
-                <a href="${escapeHtml(task.link)}" target="_blank" rel="noopener noreferrer"
-                   class="btn-primary" style="text-decoration: none; text-align: center;"
-                   onclick="startWebsiteTimer(${task.id})">
-                    🔗 Visit Website
-                </a>
-            ` : ''}
-            <button id="claim-btn-${task.id}" class="btn-secondary" disabled style="opacity: 0.5;"
-                    onclick="claimWebsiteTask(${task.id})">
-                ⏱ Wait 10 seconds...
-            </button>
-        </div>
-    `;
+    var html = '';
+    html += '<div class="task-title">' + escapeHtml(task.title) + '</div>';
+    if (task.description) {
+        html += '<div class="task-description">' + escapeHtml(task.description) + '</div>';
+    }
+    html += '<div class="task-reward">💰 ' + task.reward + ' DOGE</div>';
+    html += '<div style="display: flex; flex-direction: column; gap: 10px; margin-top: 12px;">';
+    if (task.link) {
+        html += '<a href="' + escapeHtml(task.link) + '" target="_blank" rel="noopener noreferrer" class="btn-primary" style="text-decoration: none; text-align: center;" onclick="startWebsiteTimer(' + task.id + ')">🔗 Visit Website</a>';
+    }
+    html += '<button id="claim-btn-' + task.id + '" class="btn-secondary" disabled style="opacity: 0.5;" onclick="claimWebsiteTask(' + task.id + ')">⏱ Wait 10 seconds...</button>';
+    html += '</div>';
+    return html;
 }
 
 function startWebsiteTimer(taskId) {
     if (websiteTimers[taskId]) return;
 
-    const btn = document.getElementById(`claim-btn-${taskId}`);
+    var btn = document.getElementById('claim-btn-' + taskId);
     if (!btn) return;
 
-    let remaining = 10;
+    var remaining = 10;
     btn.disabled = true;
     btn.style.opacity = '0.5';
-    btn.textContent = `⏱ Wait ${remaining} seconds...`;
+    btn.textContent = '⏱ Wait ' + remaining + ' seconds...';
 
-    websiteTimers[taskId] = setInterval(() => {
+    websiteTimers[taskId] = setInterval(function () {
         remaining--;
         if (remaining <= 0) {
             clearInterval(websiteTimers[taskId]);
@@ -120,7 +107,7 @@ function startWebsiteTimer(taskId) {
             btn.className = 'btn-primary';
             btn.textContent = '✓ Claim Reward';
         } else {
-            btn.textContent = `⏱ Wait ${remaining} seconds...`;
+            btn.textContent = '⏱ Wait ' + remaining + ' seconds...';
         }
     }, 1000);
 }
@@ -133,7 +120,7 @@ async function claimWebsiteTask(taskId) {
         return;
     }
 
-    const btn = document.getElementById(`claim-btn-${taskId}`);
+    var btn = document.getElementById('claim-btn-' + taskId);
     if (btn && btn.disabled) {
         showToast('⚠️ Visit the website first and wait for the timer');
         return;
@@ -146,19 +133,22 @@ async function verifyTelegramTask(taskId) {
     if (taskCompletionInProgress) return;
     taskCompletionInProgress = true;
 
-    const btn = document.getElementById(`verify-btn-${taskId}`);
+    var btn = document.getElementById('verify-btn-' + taskId);
     if (btn) {
         btn.disabled = true;
         btn.textContent = '⏳ Checking...';
     }
 
     try {
-        const { data: task, error: taskError } = await supabase
+        var result = await supabase
             .from('tasks')
             .select('*')
             .eq('id', taskId)
             .eq('is_active', true)
             .single();
+
+        var task = result.data;
+        var taskError = result.error;
 
         if (taskError || !task) {
             showToast('❌ Task not found');
@@ -170,7 +160,7 @@ async function verifyTelegramTask(taskId) {
             return;
         }
 
-        const { data, error } = await supabase.functions.invoke('verify-telegram-join', {
+        var fnResult = await supabase.functions.invoke('verify-telegram-join', {
             body: {
                 user_id: currentUser.telegram_id,
                 chat_id: task.chat_id,
@@ -178,13 +168,13 @@ async function verifyTelegramTask(taskId) {
             }
         });
 
-        if (error) {
-            console.error('Edge Function error:', error);
+        if (fnResult.error) {
+            console.error('Edge Function error:', fnResult.error);
             showToast('❌ Verification service unavailable');
             return;
         }
 
-        if (data?.is_member === true) {
+        if (fnResult.data && fnResult.data.is_member === true) {
             await completeTask(taskId, true);
         } else {
             showToast('❌ You have not joined the group/channel yet');
@@ -201,7 +191,8 @@ async function verifyTelegramTask(taskId) {
     }
 }
 
-async function completeTask(taskId, alreadyVerified = false) {
+async function completeTask(taskId, alreadyVerified) {
+    if (alreadyVerified === undefined) alreadyVerified = false;
     if (taskCompletionInProgress && !alreadyVerified) return;
     taskCompletionInProgress = true;
 
@@ -211,12 +202,15 @@ async function completeTask(taskId, alreadyVerified = false) {
             return;
         }
 
-        const { data: task, error: taskError } = await supabase
+        var result = await supabase
             .from('tasks')
             .select('*')
             .eq('id', taskId)
             .eq('is_active', true)
             .single();
+
+        var task = result.data;
+        var taskError = result.error;
 
         if (taskError || !task) {
             showToast('❌ Task not found');
@@ -237,19 +231,19 @@ async function completeTask(taskId, alreadyVerified = false) {
         });
 
         userTasks.push(taskId);
-        showToast(`✅ Task completed! +${task.reward} DOGE`);
+        showToast('✅ Task completed! +' + task.reward + ' DOGE');
 
-        const card = document.getElementById(`task-card-${taskId}`);
+        var card = document.getElementById('task-card-' + taskId);
         if (card) {
             card.style.transition = 'opacity 0.35s ease, transform 0.35s ease';
             card.style.opacity = '0';
             card.style.transform = 'translateX(24px)';
-            setTimeout(() => {
+            setTimeout(function () {
                 card.remove();
                 if (document.querySelectorAll('.task-card').length === 0) {
-                    const list = document.getElementById('tasksList');
+                    var list = document.getElementById('tasksList');
                     if (list) {
-                        list.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">All tasks completed 🎉</p>';
+                        list.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">All tasks completed</p>';
                     }
                 }
             }, 350);
@@ -266,8 +260,8 @@ async function completeTask(taskId, alreadyVerified = false) {
 
 async function loadUserTasks() {
     try {
-        const { data } = await db.getUserTasks(currentUser.telegram_id);
-        userTasks = data ? data.map(t => t.task_id) : [];
+        var result = await db.getUserTasks(currentUser.telegram_id);
+        userTasks = result.data ? result.data.map(function (t) { return t.task_id; }) : [];
     } catch (err) {
         console.error('Failed to load user tasks:', err);
     }
@@ -283,7 +277,7 @@ function getCompletedTasksCount() {
 
 function escapeHtml(text) {
     if (!text) return '';
-    const div = document.createElement('div');
+    var div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
