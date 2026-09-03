@@ -38,14 +38,31 @@ async function initAuth() {
 
 async function authenticateUser(tgUser) {
     try {
+        console.log('🔍 Authenticating user:', tgUser);
+        console.log('👑 Admin IDs:', SUPABASE_CONFIG.adminIds);
+        console.log('📱 Current user ID:', tgUser.id.toString());
+        console.log('✅ Is admin?', SUPABASE_CONFIG.adminIds.includes(tgUser.id.toString()));
+        
         // Check if user exists
         const { data: existingUser, error: fetchError } = await db.getUser(tgUser.id);
         
         if (existingUser) {
             currentUser = existingUser;
+            
+            // Force update admin status if needed
+            if (SUPABASE_CONFIG.adminIds.includes(tgUser.id.toString()) && !currentUser.is_admin) {
+                await db.updateUser(tgUser.id, { is_admin: true });
+                currentUser.is_admin = true;
+            }
+            
             await updateUserInfo(existingUser);
             console.log('✅ Existing user logged in:', existingUser.first_name);
+            console.log('👑 Admin status:', currentUser.is_admin);
         } else {
+            // Check if admin
+            const isAdmin = SUPABASE_CONFIG.adminIds.includes(tgUser.id.toString());
+            console.log('👑 New user admin status:', isAdmin);
+            
             // Create new user
             const newUser = {
                 telegram_id: tgUser.id,
@@ -57,7 +74,7 @@ async function authenticateUser(tgUser) {
                 daily_mined: 0,
                 weekly_mined: 0,
                 monthly_mined: 0,
-                is_admin: SUPABASE_CONFIG.adminIds.includes(tgUser.id.toString()),
+                is_admin: isAdmin,
                 created_at: new Date().toISOString()
             };
             
@@ -67,6 +84,7 @@ async function authenticateUser(tgUser) {
                 currentUser = createdUser;
                 await updateUserInfo(createdUser);
                 console.log('✅ New user created:', createdUser.first_name);
+                console.log('👑 Admin status:', createdUser.is_admin);
                 
                 // Show referral modal for new users
                 showReferralModal();
@@ -75,9 +93,12 @@ async function authenticateUser(tgUser) {
             }
         }
         
-        // Check if admin
+        // Check if admin and show admin button
         if (currentUser?.is_admin) {
+            console.log('✅ Admin button showing');
             showAdminButton();
+        } else {
+            console.log('❌ Not admin, hiding admin button');
         }
         
         // Check if banned
@@ -117,8 +138,13 @@ function updateUserInfo(user) {
 }
 
 function showAdminButton() {
+    console.log('👑 Showing admin button');
     const settingsBtn = document.querySelector('.settings-btn');
-    settingsBtn.onclick = showAdminPanel;
+    if (settingsBtn) {
+        settingsBtn.innerHTML = '👑';
+        settingsBtn.onclick = showAdminPanel;
+        settingsBtn.style.color = '#ffd700';
+    }
 }
 
 async function refreshUserData() {
@@ -135,7 +161,6 @@ async function refreshUserData() {
 
 // Toast Notification System
 function showToast(message) {
-    // Remove existing toast
     const existingToast = document.querySelector('.toast');
     if (existingToast) {
         existingToast.remove();
@@ -163,7 +188,6 @@ function showToast(message) {
     
     document.body.appendChild(toast);
     
-    // Remove after 3 seconds
     setTimeout(() => {
         toast.style.animation = 'slideDown 0.3s ease';
         setTimeout(() => toast.remove(), 300);
