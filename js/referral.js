@@ -1,17 +1,16 @@
 // Referral System
-let referralModalVisible = false;
-let referralCodeFromURL = null;
+var referralModalVisible = false;
+var referralCodeFromURL = null;
 
-// ============ REFERRAL MODAL ============
 function showReferralModal() {
     if (!currentUser || referralModalVisible) return;
     referralModalVisible = true;
-    
-    // Check if referral code came from URL
+
     if (referralCodeFromURL) {
-        document.getElementById('referralInput').value = referralCodeFromURL;
+        var input = document.getElementById('referralInput');
+        if (input) input.value = referralCodeFromURL;
     }
-    
+
     document.getElementById('referralModal').classList.remove('hidden');
 }
 
@@ -20,152 +19,219 @@ function hideReferralModal() {
     referralModalVisible = false;
 }
 
-// ============ CHECK URL FOR REFERRAL ============
 function checkReferralParam() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const startParam = urlParams.get('start');
-    
-    if (startParam && startParam.startsWith('ref_')) {
+    var startParam = null;
+
+    // Telegram Mini App start param (most important)
+    if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe) {
+        startParam = window.Telegram.WebApp.initDataUnsafe.start_param || null;
+    }
+
+    // Fallback: URL query
+    if (!startParam) {
+        try {
+            var urlParams = new URLSearchParams(window.location.search);
+            startParam = urlParams.get('start') || urlParams.get('tgWebAppStartParam');
+        } catch (e) {}
+    }
+
+    // Fallback: hash
+    if (!startParam && window.location.hash) {
+        try {
+            var hashParams = new URLSearchParams(window.location.hash.replace('#', ''));
+            startParam = hashParams.get('tgWebAppStartParam') || hashParams.get('start');
+        } catch (e) {}
+    }
+
+    if (startParam && startParam.indexOf('ref_') === 0) {
         referralCodeFromURL = startParam.replace('ref_', '');
-        
-        // If user is new and hasn't been referred yet, show modal with pre-filled ID
-        if (currentUser && !currentUser.referred_by) {
-            showReferralModal();
+
+        if (currentUser && !currentUser.referred_by && referralCodeFromURL) {
+            // Auto apply if came from referral link
+            autoApplyReferral(referralCodeFromURL);
         }
     }
 }
 
-// ============ SUBMIT REFERRAL ============
+async function autoApplyReferral(referralId) {
+    if (!referralId || !currentUser) return;
+    if (currentUser.referred_by) return;
+    if (referralId === currentUser.telegram_id.toString()) return;
+
+    try {
+        var result = await db.getUser(parseInt(referralId, 10));
+        var referrer = result.data;
+
+        if (!referrer) return;
+        if (referrer.is_banned) return;
+
+        await db.addReferral(referrer.telegram_id, currentUser.telegram_id);
+
+        await db.updateUser(currentUser.telegram_id, {
+            referred_by: referrer.telegram_id
+        });
+
+        await db.updateUser(referrer.telegram_id, {
+            referral_count: (referrer.referral_count || 0) + 1
+        });
+
+        var settingsResult = await db.getSettings();
+        var settings = settingsResult.data;
+        var referralReward = (settings && settings.referral_reward) ? settings.referral_reward : 1;
+
+        await db.updateMining(currentUser.telegram_id, referralReward);
+        await db.updateMining(referrer.telegram_id, referralReward);
+
+        await db.createTransaction({
+            user_id: currentUser.telegram_id,
+            type: 'referral',
+            amount: referralReward,
+            status: 'completed',
+            created_at: new Date().toISOString()
+        });
+
+        await db.createTransaction({
+            user_id: referrer.telegram_id,
+            type: 'referral',
+            amount: referralReward,
+            status: 'completed',
+            created_at: new Date().toISOString()
+        });
+
+        currentUser.referred_by = referrer.telegram_id;
+        hideReferralModal();
+        showToast('Referral successful! +' + referralReward + ' DOGE');
+        await refreshUserData();
+    } catch (error) {
+        console.error('Auto referral error:', error);
+        // If auto fails, still show modal so user can enter manually
+        showReferralModal();
+    }
+}
+
 async function submitReferral() {
-    const referralId = document.getElementById('referralInput').value.trim();
-    
+    var input = document.getElementById('referralInput');
+    var referralId = input ? input.value.trim() : '';
+
     if (!referralId) {
-        showToast('⚠️ Referral ID লিখুন');
+        showToast('Please enter Referral ID');
         return;
     }
-    
-    // Check if user is trying to use their own ID
+
     if (referralId === currentUser.telegram_id.toString()) {
-        showToast('❌ নিজের ID ব্যবহার করা যাবে না');
+        showToast('You cannot use your own ID');
         return;
     }
-    
-    // Check if user is already referred
+
     if (currentUser.referred_by) {
-        showToast('ℹ️ আপনি ইতিমধ্যে রেফার করেছেন');
+        showToast('You already used a referral');
         hideReferralModal();
         return;
     }
-    
+
     try {
-        // Check if referral ID exists
-        const { data: referrer, error: fetchError } = await db.getUser(parseInt(referralId));
-        
-        if (referrer) {
-            // Check if referrer is banned
-            if (referrer.is_banned) {
-                showToast('❌ এই ইউজার ব্যান করা হয়েছে');
-                return;
-            }
-            
-            // Add referral record
-            await db.addReferral(referrer.telegram_id, currentUser.telegram_id);
-            
-            // Update current user's referred_by
-            await db.updateUser(currentUser.telegram_id, {
-                referred_by: referrer.telegram_id
-            });
-            
-            // Update referrer's referral count
-            await db.updateUser(referrer.telegram_id, {
-                referral_count: (referrer.referral_count || 0) + 1
-            });
-            
-            // Get referral reward from settings
-            const { data: settings, error: settingsError } = await db.getSettings();
-            const referralReward = settings?.referral_reward || 1;
-            
-            // Reward new user
-            await db.updateMining(currentUser.telegram_id, referralReward);
-            
-            // Reward referrer
-            await db.updateMining(referrer.telegram_id, referralReward);
-            
-            // Create transaction records
-            await db.createTransaction({
-                user_id: currentUser.telegram_id,
-                type: 'referral',
-                amount: referralReward,
-                status: 'completed',
-                created_at: new Date().toISOString()
-            });
-            
-            await db.createTransaction({
-                user_id: referrer.telegram_id,
-                type: 'referral',
-                amount: referralReward,
-                status: 'completed',
-                created_at: new Date().toISOString()
-            });
-            
-            showToast(`🎉 রেফারেল সফল! +${referralReward} DOGE পেয়েছেন`);
-            hideReferralModal();
-            
-            // Refresh user data
-            await refreshUserData();
-            
-        } else {
-            showToast('❌ ভুল Referral ID');
+        var result = await db.getUser(parseInt(referralId, 10));
+        var referrer = result.data;
+
+        if (!referrer) {
+            showToast('Invalid Referral ID');
+            return;
         }
+
+        if (referrer.is_banned) {
+            showToast('This user is banned');
+            return;
+        }
+
+        await db.addReferral(referrer.telegram_id, currentUser.telegram_id);
+
+        await db.updateUser(currentUser.telegram_id, {
+            referred_by: referrer.telegram_id
+        });
+
+        await db.updateUser(referrer.telegram_id, {
+            referral_count: (referrer.referral_count || 0) + 1
+        });
+
+        var settingsResult = await db.getSettings();
+        var settings = settingsResult.data;
+        var referralReward = (settings && settings.referral_reward) ? settings.referral_reward : 1;
+
+        await db.updateMining(currentUser.telegram_id, referralReward);
+        await db.updateMining(referrer.telegram_id, referralReward);
+
+        await db.createTransaction({
+            user_id: currentUser.telegram_id,
+            type: 'referral',
+            amount: referralReward,
+            status: 'completed',
+            created_at: new Date().toISOString()
+        });
+
+        await db.createTransaction({
+            user_id: referrer.telegram_id,
+            type: 'referral',
+            amount: referralReward,
+            status: 'completed',
+            created_at: new Date().toISOString()
+        });
+
+        currentUser.referred_by = referrer.telegram_id;
+        showToast('Referral successful! +' + referralReward + ' DOGE');
+        hideReferralModal();
+        await refreshUserData();
     } catch (error) {
         console.error('Referral error:', error);
-        showToast('❌ রেফারেল প্রসেসিং এ সমস্যা হয়েছে');
+        showToast('Referral processing failed');
     }
 }
 
-// ============ SKIP REFERRAL ============
 function skipReferral() {
     hideReferralModal();
-    showToast('ℹ️ রেফারেল স্কিপ করা হয়েছে');
+    showToast('Referral skipped');
 }
 
-// ============ COPY REFERRAL LINK ============
 async function copyReferralLink() {
-    const linkInput = document.getElementById('referralLink');
-    const link = linkInput.value;
-    
+    var linkInput = document.getElementById('referralLink');
+    var link = linkInput ? linkInput.value : '';
+
     try {
         await navigator.clipboard.writeText(link);
-        showToast('✅ রেফারেল লিংক কপি হয়েছে!');
+        showToast('Referral link copied!');
     } catch (error) {
-        // Fallback for older browsers
-        linkInput.select();
-        document.execCommand('copy');
-        showToast('✅ রেফারেল লিংক কপি হয়েছে!');
+        if (linkInput) {
+            linkInput.select();
+            document.execCommand('copy');
+        }
+        showToast('Referral link copied!');
     }
 }
 
-// ============ COPY REFERRAL ID ============
 async function copyReferralId() {
-    const referralId = currentUser.telegram_id.toString();
-    
+    var referralId = currentUser.telegram_id.toString();
+
     try {
         await navigator.clipboard.writeText(referralId);
-        showToast('✅ রেফারেল ID কপি হয়েছে!');
+        showToast('Referral ID copied!');
     } catch (error) {
-        // Fallback
         showToast('Referral ID: ' + referralId);
     }
 }
 
-// ============ UPDATE REFERRAL INFO ============
 function updateReferralInfo(user) {
-    // Update referral link
-    const botUsername = window.Telegram?.WebApp?.initDataUnsafe?.user?.username || 'YourBotUsername';
-    const referralLink = `https://t.me/YourBotUsername?start=ref_${user.telegram_id}`;
-    
-    document.getElementById('referralLink').value = referralLink;
-    
-    // Update referral count display
-    document.getElementById('referralCount').textContent = (user.referral_count || 0) + ' জন';
+    var botUsername = (SUPABASE_CONFIG && SUPABASE_CONFIG.botUsername) ? SUPABASE_CONFIG.botUsername : 'YourBotUsername';
+    var referralLink = 'https://t.me/' + botUsername + '?start=ref_' + user.telegram_id;
+
+    var linkEl = document.getElementById('referralLink');
+    if (linkEl) linkEl.value = referralLink;
+
+    var countEls = document.querySelectorAll('#referralCount');
+    for (var i = 0; i < countEls.length; i++) {
+        countEls[i].textContent = (user.referral_count || 0) + ' users';
+    }
+}
+
+function getReferralLink(userId) {
+    var botUsername = (SUPABASE_CONFIG && SUPABASE_CONFIG.botUsername) ? SUPABASE_CONFIG.botUsername : 'YourBotUsername';
+    return 'https://t.me/' + botUsername + '?start=ref_' + userId;
 }
