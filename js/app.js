@@ -45,6 +45,9 @@ function showTab(tabName) {
 function loadHomeData() {
     refreshUserData();
     checkDailyStatus();
+    if (typeof loadReferralList === 'function') {
+        loadReferralList();
+    }
 }
 
 function loadMiningData() {
