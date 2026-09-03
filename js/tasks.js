@@ -4,6 +4,10 @@ let taskCompletionInProgress = false;
 const websiteTimers = {};
 
 async function loadTasks() {
+    const { data: tasks, error } = await db.getTasks();
+
+alert('Tasks: ' + JSON.stringify(tasks));   // ← এই লাইন
+alert('Error: ' + JSON.stringify(error));   // ← এই লাইন
     const container = document.getElementById('tasksList');
     if (!container) return;
 
