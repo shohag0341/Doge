@@ -1,4 +1,5 @@
 // Tasks System
+alert('tasks.js loaded successfully');
 let userTasks = [];
 let taskCompletionInProgress = false;
 const websiteTimers = {};
