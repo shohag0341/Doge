@@ -48,13 +48,15 @@ function loadHomeData() {
 }
 
 function loadMiningData() {
+    loadMiningSettings();
     loadUpgradePackages();
+    checkPackageExpiry();
     
     // Check if mining is active
     if (currentUser && currentUser.mining_active) {
         miningActive = true;
         miningStartTime = new Date(currentUser.mining_start_time).getTime();
-        document.getElementById('startMiningBtn').innerHTML = '⏸️ মাইনিং চলছে...';
+        document.getElementById('startMiningBtn').innerHTML = '⏸️ মাইনিং বন্ধ করুন';
         document.getElementById('miningStatus').textContent = '⛏️ মাইনিং চলছে...';
         
         if (!miningInterval) {
@@ -65,10 +67,7 @@ function loadMiningData() {
 
 function loadWalletData() {
     loadTransactions();
-}
-
-function loadLeaderboard() {
-    // Will be implemented in leaderboard.js
+    loadWalletAddresses();
 }
 
 function showSettings() {
@@ -105,11 +104,15 @@ async function initApp() {
         
         if (!supabaseReady) {
             showError('সার্ভার সংযোগ স্থাপন করা যায়নি');
+            document.getElementById('loadingScreen').classList.add('hidden');
             return;
         }
         
         // Initialize authentication
         await initAuth();
+        
+        // Load initial data
+        await loadInitialData();
         
         // Hide loading screen
         setTimeout(() => {
@@ -125,6 +128,22 @@ async function initApp() {
     } catch (error) {
         console.error('App initialization error:', error);
         showError('অ্যাপ লোড করতে সমস্যা হয়েছে');
+        document.getElementById('loadingScreen').classList.add('hidden');
+    }
+}
+
+// Load all initial data
+async function loadInitialData() {
+    try {
+        await Promise.all([
+            loadMiningSettings(),
+            loadUserTasks(),
+            loadWalletAddresses()
+        ]);
+        
+        console.log('✅ Initial data loaded');
+    } catch (error) {
+        console.error('Initial data loading error:', error);
     }
 }
 
