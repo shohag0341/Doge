@@ -86,6 +86,9 @@ async function authenticateUser(tgUser) {
             return;
         }
         
+        // Check referral param from URL
+        checkReferralParam();
+        
     } catch (error) {
         console.error('Authentication error:', error);
         showError('Authentication failed');
@@ -104,10 +107,13 @@ function updateUserInfo(user) {
     
     // Update referral link
     document.getElementById('referralLink').value = `https://t.me/YourBotUsername?start=ref_${user.telegram_id}`;
-    // Update referral info
-document.getElementById('referralId').value = user.telegram_id.toString();
-const referralLink = `https://t.me/YourBotUsername?start=ref_${user.telegram_id}`;
-document.getElementById('referralLink').value = referralLink;
+    
+    // Update referral ID
+    document.getElementById('referralId').value = user.telegram_id.toString();
+    
+    // Update mining rate display
+    const currentMiningRate = user.mining_rate || 0.01;
+    document.getElementById('miningRate').textContent = currentMiningRate + ' DOGE/ঘন্টা';
 }
 
 function showAdminButton() {
