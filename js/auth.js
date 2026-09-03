@@ -104,6 +104,10 @@ function updateUserInfo(user) {
     
     // Update referral link
     document.getElementById('referralLink').value = `https://t.me/YourBotUsername?start=ref_${user.telegram_id}`;
+    // Update referral info
+document.getElementById('referralId').value = user.telegram_id.toString();
+const referralLink = `https://t.me/YourBotUsername?start=ref_${user.telegram_id}`;
+document.getElementById('referralLink').value = referralLink;
 }
 
 function showAdminButton() {
