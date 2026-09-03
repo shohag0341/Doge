@@ -90,26 +90,36 @@
                 </div>
             </div>
 
+
+            
+
             <div class="referral-section">
-                <h3>🔗 আপনার রেফারেল</h3>
-                
-                <!-- Referral Link -->
-                <div class="referral-link-box">
-                    <input type="text" id="referralLink" readonly>
-                    <button onclick="copyReferralLink()" class="btn-secondary">📋 লিংক কপি</button>
-                </div>
-                
-                <!-- Referral ID -->
-                <div class="referral-link-box" style="margin-top: 10px;">
-                    <input type="text" id="referralId" readonly value="Loading...">
-                    <button onclick="copyReferralId()" class="btn-secondary">📋 ID কপি</button>
-                </div>
-                
-                <div class="referral-stats" style="margin-top: 15px;">
-                    <p>👥 মোট রেফারেল: <span id="referralCount">0 জন</span></p>
-                </div>
-            </div>
+    <h3>🔗 Your Referral</h3>
+
+    <div class="referral-link-box">
+        <input type="text" id="referralLink" readonly>
+        <button onclick="copyReferralLink()" class="btn-secondary">📋 Copy Link</button>
+    </div>
+
+    <div class="referral-link-box" style="margin-top: 10px;">
+        <input type="text" id="referralId" readonly value="Loading...">
+        <button onclick="copyReferralId()" class="btn-secondary">📋 Copy ID</button>
+    </div>
+
+    <div class="referral-stats" style="margin-top: 15px;">
+        <p>👥 Total Referrals: <span id="referralCount">0</span></p>
+        <p>🎁 Referral Reward: <span id="referralRewardDisplay">-</span> DOGE each</p>
+    </div>
+
+    <div style="margin-top: 15px;">
+        <h4 style="margin-bottom: 8px;">Your Referrals</h4>
+        <div id="referralList" class="tasks-list">
+            <p style="text-align: center; color: var(--text-secondary); font-size: 13px;">Loading...</p>
         </div>
+    </div>
+            </div>
+
+        
 
         <!-- Mining Tab -->
         <div id="miningContent" class="tab-content hidden">
