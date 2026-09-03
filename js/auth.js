@@ -1,18 +1,18 @@
 // Telegram Authentication
-let currentUser = null;
-let telegramUser = null;
+var currentUser = null;
+var telegramUser = null;
 
 async function initAuth() {
     try {
-        // Get Telegram user data
         if (window.Telegram && window.Telegram.WebApp) {
-            telegramUser = window.Telegram.WebApp.initDataUnsafe?.user;
-            
+            telegramUser = window.Telegram.WebApp.initDataUnsafe
+                ? window.Telegram.WebApp.initDataUnsafe.user
+                : null;
+
             if (telegramUser) {
                 await authenticateUser(telegramUser);
             } else {
-                // For testing without Telegram
-                const testUser = {
+                var testUser = {
                     id: 123456789,
                     username: 'test_user',
                     first_name: 'Test',
@@ -21,14 +21,13 @@ async function initAuth() {
                 await authenticateUser(testUser);
             }
         } else {
-            // For local testing
-            const testUser = {
+            var testUser2 = {
                 id: 123456789,
                 username: 'test_user',
                 first_name: 'Test',
                 last_name: 'User'
             };
-            await authenticateUser(testUser);
+            await authenticateUser(testUser2);
         }
     } catch (error) {
         console.error('Auth error:', error);
@@ -38,33 +37,33 @@ async function initAuth() {
 
 async function authenticateUser(tgUser) {
     try {
-        console.log('🔍 Authenticating user:', tgUser);
-        console.log('👑 Admin IDs:', SUPABASE_CONFIG.adminIds);
-        console.log('📱 Current user ID:', tgUser.id.toString());
-        console.log('✅ Is admin?', SUPABASE_CONFIG.adminIds.includes(tgUser.id.toString()));
-        
-        // Check if user exists
-        const { data: existingUser, error: fetchError } = await db.getUser(tgUser.id);
-        
+        console.log('Authenticating user:', tgUser);
+
+        var result = await db.getUser(tgUser.id);
+        var existingUser = result.data;
+
         if (existingUser) {
             currentUser = existingUser;
-            
-            // Force update admin status if needed
-            if (SUPABASE_CONFIG.adminIds.includes(tgUser.id.toString()) && !currentUser.is_admin) {
+
+            if (
+                SUPABASE_CONFIG.adminIds.includes(tgUser.id.toString()) &&
+                !currentUser.is_admin
+            ) {
                 await db.updateUser(tgUser.id, { is_admin: true });
                 currentUser.is_admin = true;
             }
-            
+
             await updateUserInfo(existingUser);
-            console.log('✅ Existing user logged in:', existingUser.first_name);
-            console.log('👑 Admin status:', currentUser.is_admin);
+            console.log('Existing user logged in:', existingUser.first_name);
+
+            // Existing user not yet referred → try auto referral from link
+            if (!currentUser.referred_by) {
+                await checkReferralParam();
+            }
         } else {
-            // Check if admin
-            const isAdmin = SUPABASE_CONFIG.adminIds.includes(tgUser.id.toString());
-            console.log('👑 New user admin status:', isAdmin);
-            
-            // Create new user
-            const newUser = {
+            var isAdmin = SUPABASE_CONFIG.adminIds.includes(tgUser.id.toString());
+
+            var newUser = {
                 telegram_id: tgUser.id,
                 username: tgUser.username || '',
                 first_name: tgUser.first_name || '',
@@ -77,39 +76,46 @@ async function authenticateUser(tgUser) {
                 is_admin: isAdmin,
                 created_at: new Date().toISOString()
             };
-            
-            const { data: createdUser, error: createError } = await db.createUser(newUser);
-            
+
+            var createResult = await db.createUser(newUser);
+            var createdUser = createResult.data;
+            var createError = createResult.error;
+
             if (createdUser) {
                 currentUser = createdUser;
                 await updateUserInfo(createdUser);
-                console.log('✅ New user created:', createdUser.first_name);
-                console.log('👑 Admin status:', createdUser.is_admin);
-                
-                // Show referral modal for new users
-                showReferralModal();
+                console.log('New user created:', createdUser.first_name);
+
+                // Check if came from referral link
+                var startParam = null;
+                if (
+                    window.Telegram &&
+                    window.Telegram.WebApp &&
+                    window.Telegram.WebApp.initDataUnsafe
+                ) {
+                    startParam = window.Telegram.WebApp.initDataUnsafe.start_param || null;
+                }
+
+                if (startParam && startParam.indexOf('ref_') === 0) {
+                    // Came via referral link → auto apply, no modal
+                    await checkReferralParam();
+                } else {
+                    // No referral link → show modal for manual entry
+                    showReferralModal();
+                }
             } else {
                 console.error('User creation error:', createError);
             }
         }
-        
-        // Check if admin and show admin button
-        if (currentUser?.is_admin) {
-            console.log('✅ Admin button showing');
+
+        if (currentUser && currentUser.is_admin) {
             showAdminButton();
-        } else {
-            console.log('❌ Not admin, hiding admin button');
         }
-        
-        // Check if banned
-        if (currentUser?.is_banned) {
-            showToast('⛔ আপনার অ্যাকাউন্ট ব্যান করা হয়েছে');
+
+        if (currentUser && currentUser.is_banned) {
+            showToast('Your account has been banned');
             return;
         }
-        
-        // Check referral param from URL
-        checkReferralParam();
-        
     } catch (error) {
         console.error('Authentication error:', error);
         showError('Authentication failed');
@@ -117,30 +123,68 @@ async function authenticateUser(tgUser) {
 }
 
 function updateUserInfo(user) {
-    document.getElementById('userName').textContent = user.first_name || user.username;
-    document.getElementById('userAvatar').src = user.photo_url || 'https://via.placeholder.com/40';
-    document.getElementById('balance').textContent = parseFloat(user.balance || 0).toFixed(2);
-    document.getElementById('walletBalance').textContent = parseFloat(user.balance || 0).toFixed(2);
-    document.getElementById('totalMined').textContent = parseFloat(user.total_mined || 0).toFixed(2) + ' DOGE';
-    document.getElementById('referralCount').textContent = (user.referral_count || 0) + ' জন';
-    document.getElementById('completedTasks').textContent = (user.completed_tasks || 0) + ' টি';
-    document.getElementById('lifetimeMining').textContent = parseFloat(user.total_mined || 0).toFixed(2) + ' DOGE';
-    
-    // Update referral link
-    var botUsername = (SUPABASE_CONFIG && SUPABASE_CONFIG.botUsername) ? SUPABASE_CONFIG.botUsername : 'YourBotUsername';
-document.getElementById('referralLink').value = 'https://t.me/' + botUsername + '?start=ref_' + user.telegram_id;
-    
-    // Update referral ID
-    document.getElementById('referralId').value = user.telegram_id.toString();
-    
-    // Update mining rate display
-    const currentMiningRate = user.mining_rate || 0.01;
-    document.getElementById('miningRate').textContent = currentMiningRate + ' DOGE/ঘন্টা';
+    var nameEl = document.getElementById('userName');
+    if (nameEl) nameEl.textContent = user.first_name || user.username || 'User';
+
+    var avatarEl = document.getElementById('userAvatar');
+    if (avatarEl) {
+        avatarEl.src = user.photo_url || 'https://via.placeholder.com/40';
+    }
+
+    var balanceEl = document.getElementById('balance');
+    if (balanceEl) balanceEl.textContent = parseFloat(user.balance || 0).toFixed(2);
+
+    var walletBalanceEl = document.getElementById('walletBalance');
+    if (walletBalanceEl) {
+        walletBalanceEl.textContent = parseFloat(user.balance || 0).toFixed(2);
+    }
+
+    var totalMinedEl = document.getElementById('totalMined');
+    if (totalMinedEl) {
+        totalMinedEl.textContent = parseFloat(user.total_mined || 0).toFixed(2) + ' DOGE';
+    }
+
+    var referralCountEls = document.querySelectorAll('#referralCount');
+    for (var i = 0; i < referralCountEls.length; i++) {
+        referralCountEls[i].textContent = (user.referral_count || 0) + ' users';
+    }
+
+    var completedTasksEl = document.getElementById('completedTasks');
+    if (completedTasksEl) {
+        completedTasksEl.textContent = (user.completed_tasks || 0) + ' tasks';
+    }
+
+    var lifetimeMiningEl = document.getElementById('lifetimeMining');
+    if (lifetimeMiningEl) {
+        lifetimeMiningEl.textContent = parseFloat(user.total_mined || 0).toFixed(2) + ' DOGE';
+    }
+
+    // Referral link with bot username from config
+    var botUsername =
+        SUPABASE_CONFIG && SUPABASE_CONFIG.botUsername
+            ? SUPABASE_CONFIG.botUsername
+            : 'YourBotUsername';
+
+    var referralLinkEl = document.getElementById('referralLink');
+    if (referralLinkEl) {
+        referralLinkEl.value =
+            'https://t.me/' + botUsername + '?start=ref_' + user.telegram_id;
+    }
+
+    var referralIdEl = document.getElementById('referralId');
+    if (referralIdEl) {
+        referralIdEl.value = user.telegram_id.toString();
+    }
+
+    var miningRateEl = document.getElementById('miningRate');
+    if (miningRateEl) {
+        var currentMiningRate = user.mining_rate || 0.01;
+        miningRateEl.textContent = currentMiningRate + ' DOGE/hour';
+    }
 }
 
 function showAdminButton() {
-    console.log('👑 Showing admin button');
-    const settingsBtn = document.querySelector('.settings-btn');
+    var settingsBtn = document.querySelector('.settings-btn');
     if (settingsBtn) {
         settingsBtn.innerHTML = '👑';
         settingsBtn.onclick = showAdminPanel;
@@ -150,48 +194,39 @@ function showAdminButton() {
 
 async function refreshUserData() {
     try {
-        const { data: userData, error } = await db.getUser(currentUser.telegram_id);
-        if (userData) {
-            currentUser = userData;
-            updateUserInfo(userData);
+        if (!currentUser) return;
+        var result = await db.getUser(currentUser.telegram_id);
+        if (result.data) {
+            currentUser = result.data;
+            updateUserInfo(result.data);
         }
     } catch (error) {
         console.error('User data refresh error:', error);
     }
 }
 
-// Toast Notification System
 function showToast(message) {
-    const existingToast = document.querySelector('.toast');
+    var existingToast = document.querySelector('.toast');
     if (existingToast) {
         existingToast.remove();
     }
-    
-    const toast = document.createElement('div');
+
+    var toast = document.createElement('div');
     toast.className = 'toast';
     toast.textContent = message;
-    toast.style.cssText = `
-        position: fixed;
-        bottom: 80px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(0, 0, 0, 0.9);
-        color: white;
-        padding: 12px 20px;
-        border-radius: 25px;
-        font-size: 14px;
-        z-index: 3000;
-        animation: slideUp 0.3s ease;
-        white-space: nowrap;
-        max-width: 90%;
-        text-align: center;
-    `;
-    
+    toast.style.cssText =
+        'position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);' +
+        'background: rgba(0, 0, 0, 0.9); color: white; padding: 12px 20px;' +
+        'border-radius: 25px; font-size: 14px; z-index: 3000;' +
+        'animation: slideUp 0.3s ease; white-space: nowrap; max-width: 90%; text-align: center;';
+
     document.body.appendChild(toast);
-    
-    setTimeout(() => {
+
+    setTimeout(function () {
         toast.style.animation = 'slideDown 0.3s ease';
-        setTimeout(() => toast.remove(), 300);
+        setTimeout(function () {
+            toast.remove();
+        }, 300);
     }, 3000);
 }
 
