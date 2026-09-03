@@ -2,7 +2,7 @@
 <html lang="bn">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Doge Miner - Telegram Mini App</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -15,7 +15,7 @@
     </div>
 
     <!-- Referral Modal -->
-    <div id="referralModal" class="modal">
+    <div id="referralModal" class="modal hidden">
         <div class="modal-content">
             <h2>🎉 স্বাগতম!</h2>
             <p>আপনার রেফারেল ID দিন (ঐচ্ছিক)</p>
@@ -32,7 +32,7 @@
         <!-- Header -->
         <header class="header">
             <div class="user-info">
-                <img id="userAvatar" src="" alt="Avatar" class="avatar">
+                <img id="userAvatar" src="https://via.placeholder.com/40" alt="Avatar" class="avatar">
                 <div>
                     <h3 id="userName">User</h3>
                     <p class="balance-text">🪙 <span id="balance">0</span> DOGE</p>
@@ -41,7 +41,7 @@
             <button onclick="showSettings()" class="settings-btn">⚙️</button>
         </header>
 
-        <!-- Navigation -->
+        <!-- Bottom Navigation -->
         <nav class="bottom-nav">
             <button onclick="showTab('home')" class="nav-btn active" id="homeTab">
                 <span>🏠</span>
@@ -199,9 +199,11 @@
         <div id="adminContent" class="admin-content"></div>
     </div>
 
+    <!-- JavaScript Files -->
     <script src="js/config.js"></script>
     <script src="js/supabase.js"></script>
     <script src="js/auth.js"></script>
+    <script src="js/app.js"></script>
     <script src="js/referral.js"></script>
     <script src="js/mining.js"></script>
     <script src="js/tasks.js"></script>
@@ -209,6 +211,5 @@
     <script src="js/leaderboard.js"></script>
     <script src="js/daily.js"></script>
     <script src="js/admin.js"></script>
-    <script src="js/app.js"></script>
 </body>
-                  </html>
+</html>
