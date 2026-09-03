@@ -91,25 +91,25 @@
             </div>
 
             <div class="referral-section">
-    <h3>🔗 আপনার রেফারেল</h3>
-    
-    <!-- Referral Link -->
-    <div class="referral-link-box">
-        <input type="text" id="referralLink" readonly>
-        <button onclick="copyReferralLink()" class="btn-secondary">📋 লিংক কপি</button>
-    </div>
-    
-    <!-- Referral ID -->
-    <div class="referral-link-box" style="margin-top: 10px;">
-        <input type="text" id="referralId" readonly value="Loading...">
-        <button onclick="copyReferralId()" class="btn-secondary">📋 ID কপি</button>
-    </div>
-    
-    <div class="referral-stats" style="margin-top: 15px;">
-        <p>👥 মোট রেফারেল: <span id="referralCount">0 জন</span></p>
-        <p>💰 রেফারেল ইনকাম: <span id="referralIncome">0 DOGE</span></p>
-    </div>
+                <h3>🔗 আপনার রেফারেল</h3>
+                
+                <!-- Referral Link -->
+                <div class="referral-link-box">
+                    <input type="text" id="referralLink" readonly>
+                    <button onclick="copyReferralLink()" class="btn-secondary">📋 লিংক কপি</button>
+                </div>
+                
+                <!-- Referral ID -->
+                <div class="referral-link-box" style="margin-top: 10px;">
+                    <input type="text" id="referralId" readonly value="Loading...">
+                    <button onclick="copyReferralId()" class="btn-secondary">📋 ID কপি</button>
+                </div>
+                
+                <div class="referral-stats" style="margin-top: 15px;">
+                    <p>👥 মোট রেফারেল: <span id="referralCount">0 জন</span></p>
+                </div>
             </div>
+        </div>
 
         <!-- Mining Tab -->
         <div id="miningContent" class="tab-content hidden">
@@ -211,11 +211,10 @@
         <div id="adminContent" class="admin-content"></div>
     </div>
 
-    <!-- JavaScript Files -->
+    <!-- JavaScript Files - Order is Important! -->
     <script src="js/config.js"></script>
     <script src="js/supabase.js"></script>
     <script src="js/auth.js"></script>
-    <script src="js/app.js"></script>
     <script src="js/referral.js"></script>
     <script src="js/mining.js"></script>
     <script src="js/tasks.js"></script>
@@ -223,5 +222,6 @@
     <script src="js/leaderboard.js"></script>
     <script src="js/daily.js"></script>
     <script src="js/admin.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>
