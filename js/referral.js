@@ -76,6 +76,7 @@ async function applyReferral(referralId, isAuto) {
     if (currentUser.referred_by) {
         if (!isAuto) showToast('You already used a referral');
         hideReferralModal();
+        updateEnterReferralBox();
         return true;
     }
 
@@ -93,25 +94,20 @@ async function applyReferral(referralId, isAuto) {
             return false;
         }
 
-        // Save referral relation
         var addResult = await db.addReferral(referrer.telegram_id, currentUser.telegram_id);
         if (addResult && addResult.error) {
             console.error('addReferral error:', addResult.error);
-            // continue anyway if already exists
         }
 
-        // Mark current user as referred
         await db.updateUser(currentUser.telegram_id, {
             referred_by: referrer.telegram_id
         });
 
-        // Increase referrer count
         var newCount = (referrer.referral_count || 0) + 1;
         await db.updateUser(referrer.telegram_id, {
             referral_count: newCount
         });
 
-        // Reward both
         var settingsResult = await db.getSettings();
         var settings = settingsResult.data;
         var reward = (settings && settings.referral_reward != null)
@@ -141,8 +137,10 @@ async function applyReferral(referralId, isAuto) {
 
         currentUser.referred_by = referrer.telegram_id;
         hideReferralModal();
+        updateEnterReferralBox();
         showToast('Referral successful! +' + reward + ' DOGE');
         await refreshUserData();
+        await loadReferralList();
         return true;
     } catch (error) {
         console.error('Referral apply error:', error);
@@ -163,8 +161,24 @@ async function submitReferral() {
     await applyReferral(referralId, false);
 }
 
+async function submitHomeReferral() {
+    var input = document.getElementById('homeReferralInput');
+    var referralId = input ? input.value.trim() : '';
+
+    if (!referralId) {
+        showToast('Please enter Referral ID');
+        return;
+    }
+
+    var ok = await applyReferral(referralId, false);
+    if (ok && input) {
+        input.value = '';
+    }
+}
+
 function skipReferral() {
     hideReferralModal();
+    updateEnterReferralBox();
     showToast('Referral skipped');
 }
 
@@ -217,8 +231,19 @@ function updateReferralInfo(user) {
         countEls[i].textContent = String(user.referral_count || 0);
     }
 
-    // Load reward text + referred users list
     loadReferralExtras();
+    updateEnterReferralBox();
+}
+
+function updateEnterReferralBox() {
+    var box = document.getElementById('enterReferralBox');
+    if (!box) return;
+
+    if (currentUser && !currentUser.referred_by) {
+        box.classList.remove('hidden');
+    } else {
+        box.classList.add('hidden');
+    }
 }
 
 async function loadReferralExtras() {
@@ -245,7 +270,6 @@ async function loadReferralList() {
     listEl.innerHTML = '<p style="text-align: center; color: var(--text-secondary); font-size: 13px;">Loading...</p>';
 
     try {
-        // Get referral rows
         var refResult = await db.getReferrals(currentUser.telegram_id);
         var rows = refResult.data || [];
 
@@ -255,7 +279,6 @@ async function loadReferralList() {
             return;
         }
 
-        // Fetch referred user info one by one (simple & reliable)
         var html = '';
         for (var i = 0; i < rows.length; i++) {
             var row = rows[i];
@@ -275,15 +298,9 @@ async function loadReferralList() {
                 '<div class="address-item" style="margin-bottom: 8px;">' +
                 '<div style="display: flex; justify-content: space-between; align-items: center;">' +
                 '<div>' +
-                '<strong>' +
-                escapeReferralHtml(name) +
-                '</strong> ' +
-                '<small>' +
-                escapeReferralHtml(username) +
-                '</small><br>' +
-                '<small style="color: var(--text-secondary);">ID: ' +
-                referredId +
-                '</small>' +
+                '<strong>' + escapeReferralHtml(name) + '</strong> ' +
+                '<small>' + escapeReferralHtml(username) + '</small><br>' +
+                '<small style="color: var(--text-secondary);">ID: ' + referredId + '</small>' +
                 '</div>' +
                 '<div style="color: var(--success-color); font-size: 12px;">Joined</div>' +
                 '</div></div>';
@@ -291,7 +308,6 @@ async function loadReferralList() {
 
         listEl.innerHTML = html;
 
-        // Keep count in sync with actual list length
         var countEls = document.querySelectorAll('#referralCount');
         for (var j = 0; j < countEls.length; j++) {
             countEls[j].textContent = String(rows.length);
@@ -308,4 +324,12 @@ function escapeReferralHtml(text) {
     var div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+function getReferralLink(userId) {
+    var botUsername =
+        SUPABASE_CONFIG && SUPABASE_CONFIG.botUsername
+            ? SUPABASE_CONFIG.botUsername
+            : 'YourBotUsername';
+    return 'https://t.me/' + botUsername + '?start=ref_' + userId;
 }
