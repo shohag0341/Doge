@@ -2,7 +2,8 @@
 let miningActive = false;
 let miningInterval = null;
 let miningStartTime = null;
-let miningRate = 0.01;
+let miningRate = 0.01;       // effective rate actually used for calculations
+let baseMiningRate = 0.01;   // FIX (খ): admin-configured basic rate, kept separate
 let miningTimerInterval = null;
 
 // ============ LOAD SETTINGS ============
@@ -10,7 +11,13 @@ async function loadMiningSettings() {
     try {
         const { data: settings, error } = await db.getSettings();
         if (settings) {
-            miningRate = settings.base_mining_rate || 0.01;
+            baseMiningRate = settings.base_mining_rate || 0.01;
+
+            // FIX (খ): don't blindly overwrite miningRate with the base
+            // rate — if this user has an active package with a higher
+            // mining_rate, keep using that instead. This is what gets
+            // shown and what startMining() will save.
+            miningRate = (currentUser && currentUser.mining_rate) || baseMiningRate;
             document.getElementById('miningRate').textContent = miningRate + ' DOGE/hour';
         }
     } catch (error) {
@@ -132,6 +139,11 @@ async function toggleMining() {
 // ============ START MINING ============
 async function startMining() {
     try {
+        // FIX (খ): always prefer the user's own mining_rate (which
+        // reflects any active package boost) over the plain base rate,
+        // no matter what the global miningRate was last set to.
+        miningRate = (currentUser && currentUser.mining_rate) || baseMiningRate;
+
         miningActive = true;
         miningStartTime = Date.now();
         
@@ -428,5 +440,5 @@ async function checkPackageExpiry() {
             await refreshUserData();
         }
     }
-            }
-    
+    }
+                                
