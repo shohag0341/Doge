@@ -191,12 +191,31 @@ async function approvePurchase(requestId) {
             return;
         }
 
+        // FIX (গ): if the user already has an active (non-expired)
+        // package, stack the new one on top instead of overwriting it:
+        // - mining_rate keeps compounding (unchanged behavior)
+        // - duration is ADDED on top of the remaining time left on the
+        //   current package, instead of replacing the expiry outright
+        // - active_package keeps a combined name so it's visible that
+        //   more than one package is stacked
+        const now = Date.now();
+        const existingExpiry = user.package_expiry ? new Date(user.package_expiry).getTime() : 0;
+        const hasActivePackage = existingExpiry > now;
+
         const newMiningRate = (user.mining_rate || 0.01) * pkg.mining_rate;
+
+        const newDurationMs = pkg.duration_days * 86400000;
+        const expiryBase = hasActivePackage ? existingExpiry : now;
+        const newExpiry = new Date(expiryBase + newDurationMs).toISOString();
+
+        const newActivePackageName = (hasActivePackage && user.active_package)
+            ? `${user.active_package} + ${pkg.name}`
+            : pkg.name;
 
         await db.updateUser(request.user_id, {
             mining_rate: newMiningRate,
-            active_package: pkg.name,
-            package_expiry: new Date(Date.now() + pkg.duration_days * 86400000).toISOString()
+            active_package: newActivePackageName,
+            package_expiry: newExpiry
         });
 
         if (pkg.bonus_doge > 0) {
@@ -571,5 +590,4 @@ async function updateSettings(event) {
     }
                 }
 
-
-                      
+    
