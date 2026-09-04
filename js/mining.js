@@ -172,8 +172,10 @@ async function claimMining() {
         miningInterval = null;
         miningTimerInterval = null;
         
-        // Calculate reward
-        const miningDuration = (Date.now() - miningStartTime) / 3600000; // Hours
+        // Calculate reward (capped at the 12-hour maximum mining duration)
+        const maxMiningHours = 12;
+        const actualDuration = (Date.now() - miningStartTime) / 3600000; // Hours
+        const miningDuration = Math.min(actualDuration, maxMiningHours);
         const reward = miningDuration * miningRate;
         
         if (reward > 0) {
