@@ -54,18 +54,7 @@ function loadMiningData() {
     loadMiningSettings();
     loadUpgradePackages();
     checkPackageExpiry();
-    
-    // Check if mining is active
-    if (currentUser && currentUser.mining_active) {
-        miningActive = true;
-        miningStartTime = new Date(currentUser.mining_start_time).getTime();
-        document.getElementById('startMiningBtn').innerHTML = '⏸️ Stop Mining';
-        document.getElementById('miningStatus').textContent = '⛏️ Mining in progress...';
-        
-        if (!miningInterval) {
-            miningInterval = setInterval(updateMiningProgress, 1000);
-        }
-    }
+    checkMiningStatus();
 }
 
 function loadWalletData() {
