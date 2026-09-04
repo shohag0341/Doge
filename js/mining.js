@@ -11,7 +11,7 @@ async function loadMiningSettings() {
         const { data: settings, error } = await db.getSettings();
         if (settings) {
             miningRate = settings.base_mining_rate || 0.01;
-            document.getElementById('miningRate').textContent = miningRate + ' DOGE/ঘন্টা';
+            document.getElementById('miningRate').textContent = miningRate + ' DOGE/hour';
         }
     } catch (error) {
         console.error('Mining settings loading error:', error);
@@ -37,8 +37,8 @@ async function checkMiningStatus() {
                 miningStartTime = startTime;
                 miningRate = currentUser.mining_rate || miningRate;
                 
-                document.getElementById('startMiningBtn').innerHTML = '💰 Claim করুন';
-                document.getElementById('miningStatus').textContent = '⛏️ মাইনিং চলছে...';
+                document.getElementById('startMiningBtn').innerHTML = '💰 Claim';
+                document.getElementById('miningStatus').textContent = '⛏️ Mining in progress...';
                 document.querySelector('.doge-coin').style.animation = 'float 1s ease-in-out infinite';
                 
                 if (!miningInterval) {
@@ -100,8 +100,8 @@ async function autoStopMining() {
         }
         
         // Update UI
-        document.getElementById('startMiningBtn').innerHTML = '⛏️ মাইনিং শুরু করুন';
-        document.getElementById('miningStatus').textContent = 'মাইনিং শেষ হয়েছে! আবার শুরু করতে ক্লিক করুন';
+        document.getElementById('startMiningBtn').innerHTML = '⛏️ Start Mining';
+        document.getElementById('miningStatus').textContent = 'Mining finished! Click to start again';
         document.querySelector('.doge-coin').style.animation = 'float 3s ease-in-out infinite';
         document.getElementById('miningProgressBar').style.width = '0%';
         
@@ -111,7 +111,7 @@ async function autoStopMining() {
             mining_start_time: null
         });
         
-        showToast(`✅ ১২ ঘণ্টার মাইনিং শেষ! +${reward.toFixed(4)} DOGE`);
+        showToast(`✅ 12-hour mining complete! +${reward.toFixed(4)} DOGE`);
         await refreshUserData();
         
     } catch (error) {
@@ -135,8 +135,8 @@ async function startMining() {
         miningActive = true;
         miningStartTime = Date.now();
         
-        document.getElementById('startMiningBtn').innerHTML = '💰 Claim করুন';
-        document.getElementById('miningStatus').textContent = '⛏️ মাইনিং চলছে...';
+        document.getElementById('startMiningBtn').innerHTML = '💰 Claim';
+        document.getElementById('miningStatus').textContent = '⛏️ Mining in progress...';
         
         // Start mining animation
         document.querySelector('.doge-coin').style.animation = 'float 1s ease-in-out infinite';
@@ -154,11 +154,11 @@ async function startMining() {
             mining_rate: miningRate
         });
         
-        showToast('⛏️ মাইনিং শুরু হয়েছে! ১২ ঘণ্টা চলবে');
+        showToast('⛏️ Mining started! Will run for 12 hours');
         
     } catch (error) {
         console.error('Mining start error:', error);
-        showToast('❌ মাইনিং শুরু করতে সমস্যা হয়েছে');
+        showToast('❌ Failed to start mining');
         miningActive = false;
     }
 }
@@ -191,8 +191,8 @@ async function claimMining() {
         }
         
         // Update UI
-        document.getElementById('startMiningBtn').innerHTML = '⛏️ মাইনিং শুরু করুন';
-        document.getElementById('miningStatus').textContent = 'মাইনিং শুরু করতে ক্লিক করুন';
+        document.getElementById('startMiningBtn').innerHTML = '⛏️ Start Mining';
+        document.getElementById('miningStatus').textContent = 'Click to start mining';
         document.querySelector('.doge-coin').style.animation = 'float 3s ease-in-out infinite';
         document.getElementById('miningProgressBar').style.width = '0%';
         
@@ -206,7 +206,7 @@ async function claimMining() {
         
     } catch (error) {
         console.error('Mining claim error:', error);
-        showToast('❌ Claim করতে সমস্যা হয়েছে');
+        showToast('❌ Failed to claim');
     }
 }
 
@@ -229,7 +229,7 @@ function updateMiningProgress() {
     const remainingMinutes = Math.floor((remainingTime % 3600000) / 60000);
     
     document.getElementById('miningStatus').textContent = 
-        `⛏️ ${currentReward.toFixed(4)} DOGE | বাকি: ${remainingHours}h ${remainingMinutes}m`;
+        `⛏️ ${currentReward.toFixed(4)} DOGE | Remaining: ${remainingHours}h ${remainingMinutes}m`;
 }
 
 // ============ LOAD UPGRADE PACKAGES ============
@@ -250,13 +250,13 @@ async function loadUpgradePackages() {
                         ${pkg.bonus_doge > 0 ? `<li>⚡ Bonus: ${pkg.bonus_doge} DOGE</li>` : ''}
                     </ul>
                     <button onclick="showPurchaseForm(${pkg.id})" class="btn-primary">
-                        কিনুন
+                        Buy
                     </button>
                 </div>
             `).join('');
         } else {
             document.getElementById('upgradePackages').innerHTML = 
-                '<p style="text-align: center; color: var(--text-secondary);">কোনো প্যাকেজ নেই</p>';
+                '<p style="text-align: center; color: var(--text-secondary);">No packages available</p>';
         }
     } catch (error) {
         console.error('Package loading error:', error);
@@ -294,7 +294,7 @@ async function showPurchaseForm(packageId) {
                         
                         <div style="text-align: left; margin: 15px 0;">
                             <p style="color: var(--text-secondary); margin-bottom: 10px;">
-                                নিচের যেকোনো network-এ USDT পাঠান:
+                                Send USDT to any of the networks below:
                             </p>
                             ${addresses.map(addr => `
                                 <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; margin-bottom: 10px;">
@@ -308,15 +308,15 @@ async function showPurchaseForm(packageId) {
                         </div>
                         
                         <form onsubmit="submitPackagePurchase(event, ${pkg.id}, ${pkg.price})" style="display: flex; flex-direction: column; gap: 15px;">
-                            <input type="text" id="purchaseReference" placeholder="আপনার Wallet Address বা Binance ID" required 
+                            <input type="text" id="purchaseReference" placeholder="Your Wallet Address or Binance ID" required 
                                    style="padding: 12px; border: 2px solid #333; border-radius: 10px; background: transparent; color: var(--text-primary);">
                             
-                            <input type="text" id="purchaseTxHash" placeholder="Transaction Hash (ঐচ্ছিক)" 
+                            <input type="text" id="purchaseTxHash" placeholder="Transaction Hash (optional)" 
                                    style="padding: 12px; border: 2px solid #333; border-radius: 10px; background: transparent; color: var(--text-primary);">
                             
                             <div style="display: flex; gap: 10px;">
-                                <button type="submit" class="btn-primary" style="flex: 1;">সাবমিট করুন</button>
-                                <button type="button" onclick="closePurchaseForm()" class="btn-secondary" style="flex: 1;">বাতিল</button>
+                                <button type="submit" class="btn-primary" style="flex: 1;">Submit</button>
+                                <button type="button" onclick="closePurchaseForm()" class="btn-secondary" style="flex: 1;">Cancel</button>
                             </div>
                         </form>
                     </div>
@@ -324,12 +324,12 @@ async function showPurchaseForm(packageId) {
                 
                 document.body.appendChild(modal);
             } else {
-                showToast('❌ কোনো payment address নেই');
+                showToast('❌ No payment address available');
             }
         }
     } catch (error) {
         console.error('Purchase form error:', error);
-        showToast('❌ পেমেন্ট ফর্ম খোলা যায়নি');
+        showToast('❌ Could not open payment form');
     }
 }
 
@@ -349,7 +349,7 @@ async function submitPackagePurchase(event, packageId, packagePrice) {
     const txHash = document.getElementById('purchaseTxHash').value.trim();
     
     if (!reference) {
-        showToast('⚠️ Reference ID দিন');
+        showToast('⚠️ Enter Reference ID');
         return;
     }
     
@@ -368,11 +368,11 @@ async function submitPackagePurchase(event, packageId, packagePrice) {
             }]);
         
         closePurchaseForm();
-        showToast('✅ পেমেন্ট সাবমিট হয়েছে! Admin approval-এর পর package activate হবে');
+        showToast('✅ Payment submitted! Package will activate after admin approval');
         
     } catch (error) {
         console.error('Package purchase submit error:', error);
-        showToast('❌ সাবমিট করা যায়নি');
+        showToast('❌ Could not submit');
     }
 }
 
@@ -390,7 +390,7 @@ async function checkPackageExpiry() {
                 package_expiry: null
             });
             
-            showToast('ℹ️ আপনার প্যাকেজের মেয়াদ শেষ হয়েছে');
+            showToast('ℹ️ Your package has expired');
             await refreshUserData();
         }
     }
