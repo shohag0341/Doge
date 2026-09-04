@@ -4,10 +4,17 @@ let lastCheckinDate = null;
 // ============ DAILY CHECK-IN ============
 async function dailyCheckin() {
     try {
+        // Refresh user data first so we check against the server's real last_checkin,
+        // not just an in-memory flag that resets on page reload
+        await refreshUserData();
+
         const today = new Date().toDateString();
-        
-        // Check if already checked in today
-        if (lastCheckinDate === today) {
+
+        // Check if already checked in today (server-verified)
+        if (currentUser?.last_checkin && new Date(currentUser.last_checkin).toDateString() === today) {
+            lastCheckinDate = today;
+            document.getElementById('dailyCheckinBtn').innerHTML = '✅ Checked In';
+            document.getElementById('dailyCheckinBtn').disabled = true;
             showToast('✅ Already checked in today');
             return;
         }
