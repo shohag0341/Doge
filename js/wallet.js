@@ -199,10 +199,4 @@ async function loadTransactions() {
     }
 }
 
-// ============ LOAD WALLET DATA ============
-async function loadWalletData() {
-    await Promise.all([
-        loadTransactions(),
-        loadWalletAddresses()
-    ]);
-}
+// Note: loadWalletData() is defined in app.js (called from showTab's switch statement)
