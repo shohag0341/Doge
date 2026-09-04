@@ -164,23 +164,45 @@ async function startMining() {
 }
 
 // ============ CLAIM MINING ============
+// FIX (ক): claim is now only allowed after the full 12-hour mining
+// duration has passed. Clicking claim earlier no longer pays out a
+// partial reward — it just tells the user how much time is left.
 async function claimMining() {
     try {
+        if (!miningActive || !miningStartTime) {
+            return;
+        }
+
+        const maxMiningTime = 12 * 3600000; // 12 hours in ms
+        const elapsedTime = Date.now() - miningStartTime;
+
+        if (elapsedTime < maxMiningTime) {
+            // Not enough time has passed yet — block the claim
+            const remainingTime = maxMiningTime - elapsedTime;
+            const remainingHours = Math.floor(remainingTime / 3600000);
+            const remainingMinutes = Math.floor((remainingTime % 3600000) / 60000);
+
+            showToast(`⏳ Claim available after 12 hours. Remaining: ${remainingHours}h ${remainingMinutes}m`);
+            return;
+        }
+
         miningActive = false;
         clearInterval(miningInterval);
         clearInterval(miningTimerInterval);
         miningInterval = null;
         miningTimerInterval = null;
-        
-        // Calculate reward (capped at the 12-hour maximum mining duration)
+
+        // Full 12-hour reward (elapsed time is capped at 12h since
+        // autoStopMining() would already have fired at/after this point,
+        // but we cap here too as a safety net)
         const maxMiningHours = 12;
-        const actualDuration = (Date.now() - miningStartTime) / 3600000; // Hours
+        const actualDuration = elapsedTime / 3600000; // Hours
         const miningDuration = Math.min(actualDuration, maxMiningHours);
         const reward = miningDuration * miningRate;
-        
+
         if (reward > 0) {
             await db.updateMining(currentUser.telegram_id, reward);
-            
+
             await db.createTransaction({
                 user_id: currentUser.telegram_id,
                 type: 'mining',
@@ -188,24 +210,24 @@ async function claimMining() {
                 status: 'completed',
                 created_at: new Date().toISOString()
             });
-            
+
             showToast(`✅ Claimed! +${reward.toFixed(4)} DOGE`);
         }
-        
+
         // Update UI
         document.getElementById('startMiningBtn').innerHTML = '⛏️ Start Mining';
         document.getElementById('miningStatus').textContent = 'Click to start mining';
         document.querySelector('.doge-coin').style.animation = 'float 3s ease-in-out infinite';
         document.getElementById('miningProgressBar').style.width = '0%';
-        
+
         // Update database
         await db.updateUser(currentUser.telegram_id, {
             mining_active: false,
             mining_start_time: null
         });
-        
+
         await refreshUserData();
-        
+
     } catch (error) {
         console.error('Mining claim error:', error);
         showToast('❌ Failed to claim');
@@ -229,9 +251,19 @@ function updateMiningProgress() {
     const remainingTime = Math.max(totalDuration - elapsedTime, 0);
     const remainingHours = Math.floor(remainingTime / 3600000);
     const remainingMinutes = Math.floor((remainingTime % 3600000) / 60000);
-    
-    document.getElementById('miningStatus').textContent = 
-        `⛏️ ${currentReward.toFixed(4)} DOGE | Remaining: ${remainingHours}h ${remainingMinutes}m`;
+
+    // FIX (ক): once 12 hours are complete, make it clear the claim is
+    // now ready instead of implying the user can already claim earlier.
+    const startBtn = document.getElementById('startMiningBtn');
+    if (remainingTime <= 0) {
+        if (startBtn) startBtn.innerHTML = '💰 Claim Now';
+        document.getElementById('miningStatus').textContent =
+            `✅ Ready to claim: ${currentReward.toFixed(4)} DOGE`;
+    } else {
+        if (startBtn) startBtn.innerHTML = '⏳ Mining...';
+        document.getElementById('miningStatus').textContent =
+            `⛏️ ${currentReward.toFixed(4)} DOGE | Remaining: ${remainingHours}h ${remainingMinutes}m`;
+    }
 }
 
 // ============ LOAD UPGRADE PACKAGES ============
@@ -396,4 +428,5 @@ async function checkPackageExpiry() {
             await refreshUserData();
         }
     }
-}
+            }
+    
