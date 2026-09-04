@@ -47,7 +47,7 @@ function displayDepositAddresses() {
     const addressesContainer = document.getElementById('depositAddresses');
     
     if (walletAddresses.length === 0) {
-        addressesContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">কোনো ডিপোজিট অ্যাড্রেস নেই</p>';
+        addressesContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">No deposit address available</p>';
         return;
     }
     
@@ -56,7 +56,7 @@ function displayDepositAddresses() {
             <div class="network-name">${addr.network_name}</div>
             <div class="address-value">${addr.address}</div>
             <button onclick="copyAddress('${addr.address}')" class="btn-secondary" style="margin-top: 10px; width: 100%;">
-                📋 অ্যাড্রেস কপি করুন
+                📋 Copy Address
             </button>
         </div>
     `).join('');
@@ -66,10 +66,10 @@ function displayDepositAddresses() {
 async function copyAddress(address) {
     try {
         await navigator.clipboard.writeText(address);
-        showToast('✅ অ্যাড্রেস কপি হয়েছে!');
+        showToast('✅ Address copied!');
     } catch (error) {
         // Fallback
-        showToast('অ্যাড্রেস: ' + address);
+        showToast('Address: ' + address);
     }
 }
 
@@ -80,12 +80,12 @@ async function requestWithdraw() {
     
     // Validation
     if (!address) {
-        showToast('⚠️ Wallet address দিন');
+        showToast('⚠️ Enter wallet address');
         return;
     }
     
     if (!amount || isNaN(amount)) {
-        showToast('⚠️ সঠিক পরিমাণ দিন');
+        showToast('⚠️ Enter a valid amount');
         return;
     }
     
@@ -94,12 +94,12 @@ async function requestWithdraw() {
     const minWithdraw = settings?.min_withdraw || 10;
     
     if (amount < minWithdraw) {
-        showToast(`⚠️ ন্যূনতম ${minWithdraw} DOGE প্রয়োজন`);
+        showToast(`⚠️ Minimum ${minWithdraw} DOGE required`);
         return;
     }
     
     if (amount > currentUser.balance) {
-        showToast('⚠️ অপর্যাপ্ত ব্যালেন্স');
+        showToast('⚠️ Insufficient balance');
         return;
     }
     
@@ -125,7 +125,7 @@ async function requestWithdraw() {
             balance: currentUser.balance - totalDeduction
         });
         
-        showToast('✅ উইথড্র রিকোয়েস্ট সাবমিট হয়েছে');
+        showToast('✅ Withdraw request submitted');
         
         // Clear form
         document.getElementById('withdrawAddress').value = '';
@@ -141,7 +141,7 @@ async function requestWithdraw() {
         
     } catch (error) {
         console.error('Withdraw error:', error);
-        showToast('❌ উইথড্র প্রসেসিং এ সমস্যা হয়েছে');
+        showToast('❌ Error processing withdraw');
     }
 }
 
@@ -163,10 +163,10 @@ async function loadTransactions() {
                                    tx.status === 'pending' ? 'var(--warning-color)' : 
                                    'var(--danger-color)';
                 
-                const typeName = tx.type === 'deposit' ? 'ডিপোজিট' : 
-                                tx.type === 'withdraw' ? 'উইথড্র' : 
-                                tx.type === 'mining' ? 'মাইনিং' : 
-                                tx.type === 'task' ? 'টাস্ক' : 'রেফারেল';
+                const typeName = tx.type === 'deposit' ? 'Deposit' : 
+                                tx.type === 'withdraw' ? 'Withdraw' : 
+                                tx.type === 'mining' ? 'Mining' : 
+                                tx.type === 'task' ? 'Task' : 'Referral';
                 
                 return `
                     <div class="address-item">
@@ -182,7 +182,7 @@ async function loadTransactions() {
                         ${tx.fee > 0 ? `<div style="font-size: 12px; color: var(--text-secondary);">Fee: ${tx.fee} DOGE</div>` : ''}
                         ${tx.address ? `<div style="font-size: 12px; color: var(--text-secondary); word-break: break-all;">To: ${tx.address}</div>` : ''}
                         <small style="color: var(--text-secondary); display: block; margin-top: 5px;">
-                            ${new Date(tx.created_at).toLocaleString('bn-BD')}
+                            ${new Date(tx.created_at).toLocaleString('en-US')}
                         </small>
                     </div>
                 `;
@@ -190,12 +190,12 @@ async function loadTransactions() {
             
         } else {
             document.getElementById('transactionList').innerHTML = 
-                '<p style="text-align: center; color: var(--text-secondary);">কোনো লেনদেন নেই</p>';
+                '<p style="text-align: center; color: var(--text-secondary);">No transactions found</p>';
         }
     } catch (error) {
         console.error('Transaction loading error:', error);
         document.getElementById('transactionList').innerHTML = 
-            '<p style="text-align: center; color: var(--danger-color);">লেনদেন লোড করতে সমস্যা হয়েছে</p>';
+            '<p style="text-align: center; color: var(--danger-color);">Failed to load transactions</p>';
     }
 }
 
