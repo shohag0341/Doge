@@ -8,7 +8,7 @@ async function dailyCheckin() {
         
         // Check if already checked in today
         if (lastCheckinDate === today) {
-            showToast('✅ আজ ইতিমধ্যে চেক-ইন করেছেন');
+            showToast('✅ Already checked in today');
             return;
         }
         
@@ -35,16 +35,16 @@ async function dailyCheckin() {
         });
         
         // Update UI
-        document.getElementById('dailyCheckinBtn').innerHTML = '✅ চেক-ইন সম্পন্ন';
+        document.getElementById('dailyCheckinBtn').innerHTML = '✅ Checked In';
         document.getElementById('dailyCheckinBtn').disabled = true;
         
-        showToast(`🎉 দৈনিক রিওয়ার্ড! +${dailyReward} DOGE`);
+        showToast(`🎉 Daily Reward! +${dailyReward} DOGE`);
         
         await refreshUserData();
         
     } catch (error) {
         console.error('Daily check-in error:', error);
-        showToast('❌ চেক-ইন করতে সমস্যা হয়েছে');
+        showToast('❌ Failed to check in');
     }
 }
 
@@ -57,14 +57,14 @@ async function checkDailyStatus() {
             
             if (lastCheckin.toDateString() === today.toDateString()) {
                 lastCheckinDate = today.toDateString();
-                document.getElementById('dailyCheckinBtn').innerHTML = '✅ চেক-ইন সম্পন্ন';
+                document.getElementById('dailyCheckinBtn').innerHTML = '✅ Checked In';
                 document.getElementById('dailyCheckinBtn').disabled = true;
             } else {
-                document.getElementById('dailyCheckinBtn').innerHTML = 'চেক-ইন করুন';
+                document.getElementById('dailyCheckinBtn').innerHTML = 'Check-in';
                 document.getElementById('dailyCheckinBtn').disabled = false;
             }
         } else {
-            document.getElementById('dailyCheckinBtn').innerHTML = 'চেক-ইন করুন';
+            document.getElementById('dailyCheckinBtn').innerHTML = 'Check-in';
             document.getElementById('dailyCheckinBtn').disabled = false;
         }
     } catch (error) {
