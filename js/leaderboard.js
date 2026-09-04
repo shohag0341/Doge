@@ -9,7 +9,7 @@ async function loadLeaderboard(period = 'all') {
         const leaderboardContainer = document.getElementById('leaderboardList');
         
         // Show loading
-        leaderboardContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">লোড হচ্ছে...</p>';
+        leaderboardContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">Loading...</p>';
         
         // Get top users
         const { data: users, error } = await db.getLeaderboard(period);
@@ -63,12 +63,12 @@ async function loadLeaderboard(period = 'all') {
             }).join('');
             
         } else {
-            leaderboardContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">কোনো ইউজার নেই</p>';
+            leaderboardContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">No users found</p>';
         }
     } catch (error) {
         console.error('Leaderboard loading error:', error);
         document.getElementById('leaderboardList').innerHTML = 
-            '<p style="text-align: center; color: var(--danger-color);">লিডারবোর্ড লোড করতে সমস্যা হয়েছে</p>';
+            '<p style="text-align: center; color: var(--danger-color);">Failed to load leaderboard</p>';
     }
 }
 
