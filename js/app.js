@@ -59,8 +59,8 @@ function loadMiningData() {
     if (currentUser && currentUser.mining_active) {
         miningActive = true;
         miningStartTime = new Date(currentUser.mining_start_time).getTime();
-        document.getElementById('startMiningBtn').innerHTML = '⏸️ মাইনিং বন্ধ করুন';
-        document.getElementById('miningStatus').textContent = '⛏️ মাইনিং চলছে...';
+        document.getElementById('startMiningBtn').innerHTML = '⏸️ Stop Mining';
+        document.getElementById('miningStatus').textContent = '⛏️ Mining in progress...';
         
         if (!miningInterval) {
             miningInterval = setInterval(updateMiningProgress, 1000);
@@ -77,7 +77,7 @@ function showSettings() {
     if (currentUser?.is_admin) {
         showAdminPanel();
     } else {
-        showToast('⚙️ সেটিংস শীঘ্রই আসছে');
+        showToast('⚙️ Settings coming soon');
     }
 }
 
@@ -106,7 +106,7 @@ async function initApp() {
         const supabaseReady = await initSupabase();
         
         if (!supabaseReady) {
-            showError('সার্ভার সংযোগ স্থাপন করা যায়নি');
+            showError('Could not connect to server');
             document.getElementById('loadingScreen').classList.add('hidden');
             return;
         }
@@ -130,7 +130,7 @@ async function initApp() {
         
     } catch (error) {
         console.error('App initialization error:', error);
-        showError('অ্যাপ লোড করতে সমস্যা হয়েছে');
+        showError('Failed to load app');
         document.getElementById('loadingScreen').classList.add('hidden');
     }
 }
