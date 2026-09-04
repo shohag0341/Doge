@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="bn">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -17,18 +17,18 @@
     <!-- Loading Screen -->
     <div id="loadingScreen" class="loading-screen">
         <div class="loader"></div>
-        <p>লোড হচ্ছে...</p>
+        <p>Loading...</p>
     </div>
 
     <!-- Referral Modal -->
     <div id="referralModal" class="modal hidden">
         <div class="modal-content">
-            <h2>🎉 স্বাগতম!</h2>
-            <p>আপনার রেফারেল ID দিন (ঐচ্ছিক)</p>
-            <input type="text" id="referralInput" placeholder="Referral ID লিখুন">
+            <h2>🎉 Welcome!</h2>
+            <p>Enter your Referral ID (optional)</p>
+            <input type="text" id="referralInput" placeholder="Enter Referral ID">
             <div class="modal-buttons">
-                <button onclick="submitReferral()" class="btn-primary">সাবমিট</button>
-                <button onclick="skipReferral()" class="btn-secondary">স্কিপ করুন</button>
+                <button onclick="submitReferral()" class="btn-primary">Submit</button>
+                <button onclick="skipReferral()" class="btn-secondary">Skip</button>
             </div>
         </div>
     </div>
@@ -51,48 +51,48 @@
         <nav class="bottom-nav">
             <button onclick="showTab('home')" class="nav-btn active" id="homeTab">
                 <span>🏠</span>
-                <span>হোম</span>
+                <span>Home</span>
             </button>
             <button onclick="showTab('mining')" class="nav-btn" id="miningTab">
                 <span>⛏️</span>
-                <span>মাইনিং</span>
+                <span>Mining</span>
             </button>
             <button onclick="showTab('tasks')" class="nav-btn" id="tasksTab">
                 <span>📋</span>
-                <span>টাস্ক</span>
+                <span>Tasks</span>
             </button>
             <button onclick="showTab('wallet')" class="nav-btn" id="walletTab">
                 <span>💳</span>
-                <span>ওয়ালেট</span>
+                <span>Wallet</span>
             </button>
             <button onclick="showTab('leaderboard')" class="nav-btn" id="leaderboardTab">
                 <span>🏆</span>
-                <span>লিডারবোর্ড</span>
+                <span>Leaderboard</span>
             </button>
         </nav>
 
         <!-- Home Tab -->
         <div id="homeContent" class="tab-content">
             <div class="daily-checkin-card">
-                <h3>📅 ডেইলি চেক-ইন</h3>
-                <p>প্রতিদিন লগইন করে রিওয়ার্ড নিন!</p>
+                <h3>📅 Daily Check-in</h3>
+                <p>Login daily to earn rewards!</p>
                 <button id="dailyCheckinBtn" onclick="dailyCheckin()" class="btn-primary">
-                    চেক-ইন করুন
+                    Check-in
                 </button>
             </div>
 
             <div class="stats-grid">
                 <div class="stat-card">
-                    <h4>মোট মাইনিং</h4>
+                    <h4>Total Mined</h4>
                     <p id="totalMined">0 DOGE</p>
                 </div>
                 <div class="stat-card">
-                    <h4>রেফারেল</h4>
-                    <p id="referralCount">0 জন</p>
+                    <h4>Referrals</h4>
+                    <p id="referralCount">0 users</p>
                 </div>
                 <div class="stat-card">
-                    <h4>টাস্ক সম্পন্ন</h4>
-                    <p id="completedTasks">0 টি</p>
+                    <h4>Tasks Completed</h4>
+                    <p id="completedTasks">0</p>
                 </div>
             </div>
 
@@ -142,26 +142,26 @@
                     <div class="mining-progress">
                         <div id="miningProgressBar" class="progress-bar"></div>
                     </div>
-                    <p id="miningStatus">মাইনিং শুরু করতে ক্লিক করুন</p>
+                    <p id="miningStatus">Click to start mining</p>
                 </div>
                 
                 <div class="mining-stats">
                     <div class="mining-rate">
-                        <h3>বর্তমান রেট</h3>
-                        <p id="miningRate">0.01 DOGE/ঘন্টা</p>
+                        <h3>Current Rate</h3>
+                        <p id="miningRate">0.01 DOGE/hour</p>
                     </div>
                     <div class="mining-total">
-                        <h3>মোট মাইনিং</h3>
+                        <h3>Total Mined</h3>
                         <p id="lifetimeMining">0 DOGE</p>
                     </div>
                 </div>
 
                 <button id="startMiningBtn" onclick="toggleMining()" class="btn-primary big-btn">
-                    ⛏️ মাইনিং শুরু করুন
+                    ⛏️ Start Mining
                 </button>
 
                 <div class="upgrade-section">
-                    <h3>🚀 আপগ্রেড প্যাকেজ</h3>
+                    <h3>🚀 Upgrade Packages</h3>
                     <div id="upgradePackages" class="packages-grid"></div>
                 </div>
             </div>
@@ -169,7 +169,7 @@
 
         <!-- Tasks Tab -->
         <div id="tasksContent" class="tab-content hidden">
-            <h2>📋 টাস্ক সম্পন্ন করুন</h2>
+            <h2>📋 Complete Tasks</h2>
             <div id="tasksList" class="tasks-list"></div>
         </div>
 
@@ -177,30 +177,30 @@
         <div id="walletContent" class="tab-content hidden">
             <div class="wallet-container">
                 <div class="wallet-balance">
-                    <h2>মোট ব্যালেন্স</h2>
+                    <h2>Total Balance</h2>
                     <p class="large-balance" id="walletBalance">0 DOGE</p>
                 </div>
 
                 <div class="wallet-actions">
-                    <button onclick="showDeposit()" class="btn-primary">📥 ডিপোজিট</button>
-                    <button onclick="showWithdraw()" class="btn-primary">📤 উইথড্র</button>
+                    <button onclick="showDeposit()" class="btn-primary">📥 Deposit</button>
+                    <button onclick="showWithdraw()" class="btn-primary">📤 Withdraw</button>
                 </div>
 
                 <div id="depositSection" class="wallet-section hidden">
-                    <h3>📥 USDT ডিপোজিট</h3>
-                    <p>নিচের যেকোনো নেটওয়ার্কে USDT পাঠান:</p>
+                    <h3>📥 USDT Deposit</h3>
+                    <p>Send USDT to any of the networks below:</p>
                     <div id="depositAddresses" class="address-list"></div>
                 </div>
 
                 <div id="withdrawSection" class="wallet-section hidden">
-                    <h3>📤 DOGE উইথড্র</h3>
-                    <input type="text" id="withdrawAddress" placeholder="আপনার Doge Wallet Address">
-                    <input type="number" id="withdrawAmount" placeholder="পরিমাণ">
-                    <button onclick="requestWithdraw()" class="btn-primary">উইথড্র রিকোয়েস্ট</button>
+                    <h3>📤 DOGE Withdraw</h3>
+                    <input type="text" id="withdrawAddress" placeholder="Your Doge Wallet Address">
+                    <input type="number" id="withdrawAmount" placeholder="Amount">
+                    <button onclick="requestWithdraw()" class="btn-primary">Withdraw Request</button>
                 </div>
 
                 <div class="transaction-history">
-                    <h3>📊 লেনদেন ইতিহাস</h3>
+                    <h3>📊 Transaction History</h3>
                     <div id="transactionList"></div>
                 </div>
             </div>
@@ -208,12 +208,12 @@
 
         <!-- Leaderboard Tab -->
         <div id="leaderboardContent" class="tab-content hidden">
-            <h2>🏆 টপ আর্নার</h2>
+            <h2>🏆 Top Earners</h2>
             <div class="leaderboard-filter">
-                <button class="btn-filter active" onclick="filterLeaderboard('all')">সব</button>
-                <button class="btn-filter" onclick="filterLeaderboard('daily')">দৈনিক</button>
-                <button class="btn-filter" onclick="filterLeaderboard('weekly')">সাপ্তাহিক</button>
-                <button class="btn-filter" onclick="filterLeaderboard('monthly')">মাসিক</button>
+                <button class="btn-filter active" onclick="filterLeaderboard('all')">All</button>
+                <button class="btn-filter" onclick="filterLeaderboard('daily')">Daily</button>
+                <button class="btn-filter" onclick="filterLeaderboard('weekly')">Weekly</button>
+                <button class="btn-filter" onclick="filterLeaderboard('monthly')">Monthly</button>
             </div>
             <div id="leaderboardList" class="leaderboard-list"></div>
         </div>
@@ -222,17 +222,17 @@
     <!-- Admin Panel (Hidden from normal users) -->
     <div id="adminPanel" class="admin-panel hidden">
         <div class="admin-header">
-            <h2>👑 এডমিন প্যানেল</h2>
+            <h2>👑 Admin Panel</h2>
             <button onclick="closeAdmin()">✕</button>
         </div>
 
         
         <div class="admin-tabs">
-    <button onclick="showAdminTab('users')" class="admin-tab active">ইউজার</button>
-    <button onclick="showAdminTab('packages')" class="admin-tab">প্যাকেজ</button>
-    <button onclick="showAdminTab('tasks')" class="admin-tab">টাস্ক</button>
+    <button onclick="showAdminTab('users')" class="admin-tab active">Users</button>
+    <button onclick="showAdminTab('packages')" class="admin-tab">Packages</button>
+    <button onclick="showAdminTab('tasks')" class="admin-tab">Tasks</button>
     <button onclick="showAdminTab('requests')" class="admin-tab">💳 Purchase</button>
-    <button onclick="showAdminTab('settings')" class="admin-tab">সেটিংস</button>
+    <button onclick="showAdminTab('settings')" class="admin-tab">Settings</button>
         </div>
 
 
