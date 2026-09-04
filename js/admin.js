@@ -122,7 +122,7 @@ async function loadPurchaseRequests() {
                                     <small>@${req.users?.username || 'N/A'}</small><br>
                                     <small>User ID: ${req.user_id}</small><br>
                                     <strong>Package: ${req.packages?.name || 'N/A'}</strong><br>
-                                    <small>Price: \[ {req.package_price}</small><br>
+                                    <small>Price: $${req.package_price}</small><br>
                                     <small style="word-break: break-all;">Reference: ${req.reference_id}</small>
                                     ${req.tx_hash ? `<br><small style="word-break: break-all;">Tx Hash: ${req.tx_hash}</small>` : ''}<br>
                                     <small>Date: ${new Date(req.created_at).toLocaleString()}</small>
@@ -247,7 +247,7 @@ async function loadAdminPackages() {
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <div>
                                 <strong>${pkg.name}</strong><br>
-                                <small>Price: \]{pkg.price}</small><br>
+                                <small>Price: $${pkg.price}</small><br>
                                 <small>Rate: ${pkg.mining_rate}x | Duration: ${pkg.duration_days} days</small><br>
                                 <small>Bonus: ${pkg.bonus_doge || 0} DOGE</small>
                             </div>
@@ -572,3 +572,4 @@ async function updateSettings(event) {
                 }
 
 
+                      
