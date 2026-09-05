@@ -2,53 +2,35 @@
 let lastCheckinDate = null;
 
 // ============ DAILY CHECK-IN ============
+// SECURITY: the reward, the once-per-day check, and the transaction
+// record are now all handled server-side by the daily-checkin Edge
+// Function, using the DB's last_checkin value — not the client's.
 async function dailyCheckin() {
     try {
-        // Refresh user data first so we check against the server's real last_checkin,
-        // not just an in-memory flag that resets on page reload
-        await refreshUserData();
+        const result = await callEdgeFunction('daily-checkin', {});
 
-        const today = new Date().toDateString();
-
-        // Check if already checked in today (server-verified)
-        if (currentUser?.last_checkin && new Date(currentUser.last_checkin).toDateString() === today) {
-            lastCheckinDate = today;
-            document.getElementById('dailyCheckinBtn').innerHTML = '✅ Checked In';
-            document.getElementById('dailyCheckinBtn').disabled = true;
-            showToast('✅ Already checked in today');
+        if (!result.ok) {
+            if (result.data && result.data.error === 'already_checked_in') {
+                lastCheckinDate = new Date().toDateString();
+                document.getElementById('dailyCheckinBtn').innerHTML = '✅ Checked In';
+                document.getElementById('dailyCheckinBtn').disabled = true;
+                showToast('✅ Already checked in today');
+                return;
+            }
+            showToast('❌ Failed to check in');
             return;
         }
-        
-        // Get daily reward from settings
-        const { data: settings } = await db.getSettings();
-        const dailyReward = settings?.daily_checkin_reward || 0.5;
-        
-        // Add daily reward
-        await db.updateMining(currentUser.telegram_id, dailyReward);
-        
-        // Create transaction record
-        await db.createTransaction({
-            user_id: currentUser.telegram_id,
-            type: 'daily_checkin',
-            amount: dailyReward,
-            status: 'completed',
-            created_at: new Date().toISOString()
-        });
-        
-        // Update last check-in date
-        lastCheckinDate = today;
-        await db.updateUser(currentUser.telegram_id, {
-            last_checkin: new Date().toISOString()
-        });
-        
-        // Update UI
+
+        const dailyReward = result.data.reward || 0;
+        lastCheckinDate = new Date().toDateString();
+
         document.getElementById('dailyCheckinBtn').innerHTML = '✅ Checked In';
         document.getElementById('dailyCheckinBtn').disabled = true;
-        
+
         showToast(`🎉 Daily Reward! +${dailyReward} DOGE`);
-        
+
         await refreshUserData();
-        
+
     } catch (error) {
         console.error('Daily check-in error:', error);
         showToast('❌ Failed to check in');
