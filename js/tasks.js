@@ -128,9 +128,12 @@ async function claimWebsiteTask(taskId) {
     await completeTask(taskId);
 }
 
+// SECURITY: telegram-membership verification now happens INSIDE the
+// complete-task Edge Function (server-to-server), so we just call it
+// directly instead of separately invoking verify-telegram-join from
+// the client first.
 async function verifyTelegramTask(taskId) {
     if (taskCompletionInProgress) return;
-    taskCompletionInProgress = true;
 
     var btn = document.getElementById('verify-btn-' + taskId);
     if (btn) {
@@ -138,61 +141,16 @@ async function verifyTelegramTask(taskId) {
         btn.textContent = '⏳ Checking...';
     }
 
-    try {
-        var result = await supabase
-            .from('tasks')
-            .select('*')
-            .eq('id', taskId)
-            .eq('is_active', true)
-            .single();
+    await completeTask(taskId);
 
-        var task = result.data;
-        var taskError = result.error;
-
-        if (taskError || !task) {
-            showToast('❌ Task not found');
-            return;
-        }
-
-        if (!task.chat_id) {
-            showToast('❌ Chat ID is missing for this task');
-            return;
-        }
-
-        var fnResult = await supabase.functions.invoke('verify-telegram-join', {
-            body: {
-                user_id: currentUser.telegram_id,
-                chat_id: task.chat_id,
-                task_id: taskId
-            }
-        });
-
-        if (fnResult.error) {
-            console.error('Edge Function error:', fnResult.error);
-            showToast('❌ Verification service unavailable');
-            return;
-        }
-
-        if (fnResult.data && fnResult.data.is_member === true) {
-            await completeTask(taskId, true);
-        } else {
-            showToast('❌ You have not joined the group/channel yet');
-        }
-    } catch (err) {
-        console.error('Telegram verification failed:', err);
-        showToast('❌ Verification failed');
-    } finally {
-        taskCompletionInProgress = false;
-        if (btn) {
-            btn.disabled = false;
-            btn.textContent = '✓ Verify & Claim';
-        }
+    if (btn) {
+        btn.disabled = false;
+        btn.textContent = '✓ Verify & Claim';
     }
 }
 
-async function completeTask(taskId, alreadyVerified) {
-    if (alreadyVerified === undefined) alreadyVerified = false;
-    if (taskCompletionInProgress && !alreadyVerified) return;
+async function completeTask(taskId) {
+    if (taskCompletionInProgress) return;
     taskCompletionInProgress = true;
 
     try {
@@ -201,36 +159,24 @@ async function completeTask(taskId, alreadyVerified) {
             return;
         }
 
-        var result = await supabase
-            .from('tasks')
-            .select('*')
-            .eq('id', taskId)
-            .eq('is_active', true)
-            .single();
+        const result = await callEdgeFunction('complete-task', { taskId: taskId });
 
-        var task = result.data;
-        var taskError = result.error;
-
-        if (taskError || !task) {
-            showToast('❌ Task not found');
+        if (!result.ok) {
+            const err = (result.data && result.data.error) || 'unknown';
+            if (err === 'not_joined') {
+                showToast('❌ You have not joined the group/channel yet');
+            } else if (err === 'already_completed') {
+                showToast('ℹ️ This task is already completed');
+                userTasks.push(taskId);
+            } else {
+                showToast('❌ Failed to complete task');
+            }
             return;
         }
 
-        await db.completeTask(currentUser.telegram_id, taskId);
-        await db.updateMining(currentUser.telegram_id, task.reward);
-        await db.updateUser(currentUser.telegram_id, {
-            completed_tasks: (currentUser.completed_tasks || 0) + 1
-        });
-        await db.createTransaction({
-            user_id: currentUser.telegram_id,
-            type: 'task',
-            amount: task.reward,
-            status: 'completed',
-            created_at: new Date().toISOString()
-        });
-
+        const reward = result.data.reward || 0;
         userTasks.push(taskId);
-        showToast('✅ Task completed! +' + task.reward + ' DOGE');
+        showToast('✅ Task completed! +' + reward + ' DOGE');
 
         var card = document.getElementById('task-card-' + taskId);
         if (card) {
