@@ -236,6 +236,16 @@ body {
     to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes slideUp {
+    from { opacity: 0; transform: translate(-50%, 20px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@keyframes slideDown {
+    from { opacity: 1; transform: translate(-50%, 0); }
+    to { opacity: 0; transform: translate(-50%, 20px); }
+}
+
 /* Cards */
 .daily-checkin-card,
 .stat-card,
@@ -772,6 +782,19 @@ body {
     padding: 20px;
 }
 
+/* address-item is reused inside the dark admin panel for user/package/
+   purchase-request cards. Those cards keep their own light background,
+   so force dark text there instead of inheriting the admin panel's
+   light-on-dark text color. */
+.admin-panel .address-item {
+    color: var(--text-primary);
+}
+
+.admin-panel .address-item .network-name,
+.admin-panel .address-item strong {
+    color: var(--primary-color);
+}
+
 /* Responsive Design */
 @media (max-width: 480px) {
     .stats-grid {
@@ -785,4 +808,4 @@ body {
     .wallet-actions {
         grid-template-columns: 1fr;
     }
-    }
+}
