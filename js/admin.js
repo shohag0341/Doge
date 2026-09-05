@@ -84,7 +84,12 @@ function searchUsers(query) {
 
 async function toggleUserBan(userId, banStatus) {
     try {
-        await db.updateUser(userId, { is_banned: banStatus });
+        const result = await callEdgeFunction('admin-toggle-ban', { userId: userId, banStatus: banStatus });
+        if (!result.ok) {
+            const err = (result.data && result.data.error) || 'unknown error';
+            showToast('❌ Operation failed: ' + err);
+            return;
+        }
         showToast(banStatus ? '✅ User banned' : '✅ User unbanned');
         loadAdminUsers();
     } catch (error) {
@@ -165,66 +170,21 @@ async function loadPurchaseRequests() {
 
 
 
+// SECURITY: admin status is now checked server-side inside the Edge
+// Function (against the ADMIN_TELEGRAM_IDS secret), not just by this
+// panel being reachable in the browser. Package stacking (FIX গ) also
+// now happens via user_packages + sync_user_mining_rate() in the DB.
 async function approvePurchase(requestId) {
     if (!confirm('Are you sure you want to approve this purchase request?')) return;
 
     try {
-        const { data: request, error: fetchError } = await supabase
-            .from('purchase_requests').select('*').eq('id', requestId).single();
+        const result = await callEdgeFunction('admin-approve-purchase', { requestId: requestId });
 
-        if (fetchError || !request) {
-            showToast('❌ Request not found');
+        if (!result.ok) {
+            const err = (result.data && result.data.error) || 'unknown error';
+            showToast('❌ Failed to approve: ' + err);
             return;
         }
-
-        const { data: pkg, error: pkgError } = await supabase
-            .from('packages').select('*').eq('id', request.package_id).single();
-
-        if (pkgError || !pkg) {
-            showToast('❌ Package not found');
-            return;
-        }
-
-        const { data: user, error: userError } = await db.getUser(request.user_id);
-        if (userError || !user) {
-            showToast('❌ User not found');
-            return;
-        }
-
-        // FIX (গ): if the user already has an active (non-expired)
-        // package, stack the new one on top instead of overwriting it:
-        // - mining_rate keeps compounding (unchanged behavior)
-        // - duration is ADDED on top of the remaining time left on the
-        //   current package, instead of replacing the expiry outright
-        // - active_package keeps a combined name so it's visible that
-        //   more than one package is stacked
-        const now = Date.now();
-        const existingExpiry = user.package_expiry ? new Date(user.package_expiry).getTime() : 0;
-        const hasActivePackage = existingExpiry > now;
-
-        const newMiningRate = (user.mining_rate || 0.01) * pkg.mining_rate;
-
-        const newDurationMs = pkg.duration_days * 86400000;
-        const expiryBase = hasActivePackage ? existingExpiry : now;
-        const newExpiry = new Date(expiryBase + newDurationMs).toISOString();
-
-        const newActivePackageName = (hasActivePackage && user.active_package)
-            ? `${user.active_package} + ${pkg.name}`
-            : pkg.name;
-
-        await db.updateUser(request.user_id, {
-            mining_rate: newMiningRate,
-            active_package: newActivePackageName,
-            package_expiry: newExpiry
-        });
-
-        if (pkg.bonus_doge > 0) {
-            await db.updateMining(request.user_id, pkg.bonus_doge);
-        }
-
-        await supabase.from('purchase_requests')
-            .update({ status: 'approved', updated_at: new Date().toISOString() })
-            .eq('id', requestId);
 
         showToast('✅ Purchase approved! Package activated');
         loadPurchaseRequests();
@@ -238,9 +198,14 @@ async function rejectPurchase(requestId) {
     if (!confirm('Are you sure you want to reject this purchase request?')) return;
 
     try {
-        await supabase.from('purchase_requests')
-            .update({ status: 'rejected', updated_at: new Date().toISOString() })
-            .eq('id', requestId);
+        const result = await callEdgeFunction('admin-reject-purchase', { requestId: requestId });
+
+        if (!result.ok) {
+            const err = (result.data && result.data.error) || 'unknown error';
+            showToast('❌ Failed to reject: ' + err);
+            return;
+        }
+
         showToast('❌ Purchase rejected');
         loadPurchaseRequests();
     } catch (error) {
@@ -441,7 +406,6 @@ async function addTask(event) {
         is_active: true,
         created_at: new Date().toISOString()
     };
-
     try {
         await db.createTask(taskData);
         showToast('✅ Task created successfully');
@@ -451,7 +415,6 @@ async function addTask(event) {
         showToast('❌ Failed to create task');
     }
 }
-
 async function deleteTask(taskId) {
     if (!confirm('Are you sure you want to delete this task?')) return;
     try {
@@ -463,15 +426,12 @@ async function deleteTask(taskId) {
         showToast('❌ Failed to delete task');
     }
 }
-
 async function loadAdminSettings() {
     const adminContent = document.getElementById('adminContent');
     adminContent.innerHTML = '<p>Loading...</p>';
-
     try {
         const { data: settings, error } = await db.getSettings();
         if (error) throw error;
-
         if (settings) {
             adminContent.innerHTML = `
                 <h3>⚙️ Settings</h3>
@@ -504,13 +464,11 @@ async function loadAdminSettings() {
         adminContent.innerHTML = '<p>Failed to load settings</p>';
     }
 }
-
 async function loadAdminWalletAddresses() {
     try {
         const { data: addresses, error } = await db.getWalletAddresses();
         const container = document.getElementById('adminWalletAddresses');
         if (!container) return;
-
         if (addresses && addresses.length > 0) {
             container.innerHTML = addresses.map(addr => `
                 <div class="address-item">
@@ -526,7 +484,6 @@ async function loadAdminWalletAddresses() {
         console.error('Admin wallet addresses loading error:', error);
     }
 }
-
 function showAddWalletAddressForm() {
     const container = document.getElementById('adminWalletAddresses');
     if (!container) return;
@@ -540,7 +497,6 @@ function showAddWalletAddressForm() {
         </form>
     `;
 }
-
 async function addWalletAddress(event) {
     event.preventDefault();
     const addressData = {
@@ -558,7 +514,6 @@ async function addWalletAddress(event) {
         showToast('❌ Failed to add address');
     }
 }
-
 async function deleteWalletAddress(addressId) {
     if (!confirm('Are you sure you want to delete this address?')) return;
     try {
@@ -581,13 +536,16 @@ async function updateSettings(event) {
         withdraw_fee: parseFloat(document.getElementById('settingWithdrawFee').value)
     };
     try {
-        await db.updateSettings(settings);
+        const result = await callEdgeFunction('admin-update-settings', { settings: settings });
+        if (!result.ok) {
+            const err = (result.data && result.data.error) || 'unknown error';
+            showToast('❌ Failed to update settings: ' + err);
+            return;
+        }
         showToast('✅ Settings updated');
         loadAdminSettings();
     } catch (error) {
         console.error('Settings update error:', error);
         showToast('❌ Failed to update settings');
     }
-                }
-
-    
+}
