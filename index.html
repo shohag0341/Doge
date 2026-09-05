@@ -41,7 +41,6 @@
                 <img id="userAvatar" src="https://via.placeholder.com/40" alt="Avatar" class="avatar">
                 <div>
                     <h3 id="userName">User</h3>
-                    <p class="balance-text">🪙 <span id="balance">0</span> DOGE</p>
                 </div>
             </div>
             <button onclick="showSettings()" class="settings-btn">⚙️</button>
@@ -50,29 +49,41 @@
         <!-- Bottom Navigation -->
         <nav class="bottom-nav">
             <button onclick="showTab('home')" class="nav-btn active" id="homeTab">
-                <span>🏠</span>
+                <svg viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9h12v-9"/><path d="M10 19v-5h4v5"/></svg>
                 <span>Home</span>
             </button>
             <button onclick="showTab('mining')" class="nav-btn" id="miningTab">
-                <span>⛏️</span>
+                <svg viewBox="0 0 24 24"><path d="M12 3 4 9l8 12 8-12-8-6Z"/><path d="M4 9h16M8 9l4 12M16 9l-4 12"/></svg>
                 <span>Mining</span>
             </button>
             <button onclick="showTab('tasks')" class="nav-btn" id="tasksTab">
-                <span>📋</span>
+                <svg viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="16" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/></svg>
                 <span>Tasks</span>
             </button>
             <button onclick="showTab('wallet')" class="nav-btn" id="walletTab">
-                <span>💳</span>
+                <svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><circle cx="17" cy="14" r="1.4" fill="currentColor" stroke="none"/></svg>
                 <span>Wallet</span>
             </button>
             <button onclick="showTab('leaderboard')" class="nav-btn" id="leaderboardTab">
-                <span>🏆</span>
-                <span>Leaderboard</span>
+                <svg viewBox="0 0 24 24"><path d="M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M7 5H4v2a3 3 0 0 0 3 3M17 5h3v2a3 3 0 0 1-3 3"/><path d="M12 13v3M9 20h6M10 20v-2.5M14 20v-2.5"/></svg>
+                <span>Rank</span>
             </button>
         </nav>
 
         <!-- Home Tab -->
         <div id="homeContent" class="tab-content">
+            <div class="balance-hero">
+                <div class="balance-hero-label"><span class="live-dot"></span> Your balance</div>
+                <div class="balance-hero-figure">
+                    <span id="balance">0</span>
+                    <span class="balance-hero-unit">DOGE</span>
+                </div>
+                <div class="balance-hero-footer">
+                    <span>⛏ Total mined</span>
+                    <strong id="totalMined">0 DOGE</strong>
+                </div>
+            </div>
+
             <div class="daily-checkin-card">
                 <h3>📅 Daily Check-in</h3>
                 <p>Login daily to earn rewards!</p>
@@ -82,10 +93,6 @@
             </div>
 
             <div class="stats-grid">
-                <div class="stat-card">
-                    <h4>Total Mined</h4>
-                    <p id="totalMined">0 DOGE</p>
-                </div>
                 <div class="stat-card">
                     <h4>Referrals</h4>
                     <p id="referralCount">0 users</p>
@@ -118,10 +125,10 @@
     </div>
 
     <!-- Enter code if user skipped earlier -->
-    <div id="enterReferralBox" class="hidden" style="margin-top: 15px; padding: 12px; border: 1px solid #333; border-radius: 12px;">
+    <div id="enterReferralBox" class="hidden" style="margin-top: 15px; padding: 12px; border: 1.5px solid #DCEEEA; border-radius: 16px;">
         <h4 style="margin-bottom: 8px;">Have a Referral Code?</h4>
         <input type="text" id="homeReferralInput" placeholder="Enter Referral ID"
-               style="width: 100%; padding: 12px; border: 2px solid #333; border-radius: 10px; background: var(--card-background); color: var(--text-primary); margin-bottom: 10px;">
+               style="width: 100%; padding: 12px; border: 1.5px solid #DCEEEA; border-radius: 12px; background: var(--page-background); color: var(--text-primary); margin-bottom: 10px;">
         <button onclick="submitHomeReferral()" class="btn-primary" style="width: 100%;">Apply Referral</button>
     </div>
 
