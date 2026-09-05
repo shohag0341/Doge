@@ -63,6 +63,10 @@ async function checkReferralParam() {
     }
 }
 
+// SECURITY: referral validation (self-referral, already-referred,
+// banned referrer) and both reward payouts now happen server-side in
+// the apply-referral Edge Function, using its own DB reads — not
+// values the client already had in memory.
 async function applyReferral(referralId, isAuto) {
     if (!referralId || !currentUser) return false;
 
@@ -81,61 +85,26 @@ async function applyReferral(referralId, isAuto) {
     }
 
     try {
-        var refResult = await db.getUser(parseInt(referralId, 10));
-        var referrer = refResult.data;
+        const result = await callEdgeFunction('apply-referral', { referralId: referralId });
 
-        if (!referrer) {
-            if (!isAuto) showToast('Invalid Referral ID');
+        if (!result.ok) {
+            const err = (result.data && result.data.error) || 'unknown';
+            if (err === 'already_referred') {
+                hideReferralModal();
+                updateEnterReferralBox();
+                return true;
+            }
+            if (!isAuto) {
+                if (err === 'referrer_not_found') showToast('Invalid Referral ID');
+                else if (err === 'referrer_banned') showToast('This user is banned');
+                else if (err === 'cannot_refer_self') showToast('You cannot use your own ID');
+                else showToast('Referral failed');
+            }
             return false;
         }
 
-        if (referrer.is_banned) {
-            if (!isAuto) showToast('This user is banned');
-            return false;
-        }
-
-        var addResult = await db.addReferral(referrer.telegram_id, currentUser.telegram_id);
-        if (addResult && addResult.error) {
-            console.error('addReferral error:', addResult.error);
-        }
-
-        await db.updateUser(currentUser.telegram_id, {
-            referred_by: referrer.telegram_id
-        });
-
-        var newCount = (referrer.referral_count || 0) + 1;
-        await db.updateUser(referrer.telegram_id, {
-            referral_count: newCount
-        });
-
-        var settingsResult = await db.getSettings();
-        var settings = settingsResult.data;
-        var reward = (settings && settings.referral_reward != null)
-            ? parseFloat(settings.referral_reward)
-            : 1;
-
-        if (reward > 0) {
-            await db.updateMining(currentUser.telegram_id, reward);
-            await db.updateMining(referrer.telegram_id, reward);
-
-            await db.createTransaction({
-                user_id: currentUser.telegram_id,
-                type: 'referral',
-                amount: reward,
-                status: 'completed',
-                created_at: new Date().toISOString()
-            });
-
-            await db.createTransaction({
-                user_id: referrer.telegram_id,
-                type: 'referral',
-                amount: reward,
-                status: 'completed',
-                created_at: new Date().toISOString()
-            });
-        }
-
-        currentUser.referred_by = referrer.telegram_id;
+        const reward = result.data.reward || 0;
+        currentUser.referred_by = parseInt(referralId, 10);
         hideReferralModal();
         updateEnterReferralBox();
         showToast('Referral successful! +' + reward + ' DOGE');
@@ -333,3 +302,4 @@ function getReferralLink(userId) {
             : 'YourBotUsername';
     return 'https://t.me/' + botUsername + '?start=ref_' + userId;
 }
+    
