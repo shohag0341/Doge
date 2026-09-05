@@ -4,30 +4,16 @@ var telegramUser = null;
 
 async function initAuth() {
     try {
-        if (window.Telegram && window.Telegram.WebApp) {
-            telegramUser = window.Telegram.WebApp.initDataUnsafe
-                ? window.Telegram.WebApp.initDataUnsafe.user
-                : null;
-
-            if (telegramUser) {
-                await authenticateUser(telegramUser);
-            } else {
-                var testUser = {
-                    id: 123456789,
-                    username: 'test_user',
-                    first_name: 'Test',
-                    last_name: 'User'
-                };
-                await authenticateUser(testUser);
-            }
+        if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) {
+            // Real Telegram session — the raw initData string is what
+            // gets signature-verified server-side in the Edge Function.
+            await authenticateUser();
         } else {
-            var testUser2 = {
-                id: 123456789,
-                username: 'test_user',
-                first_name: 'Test',
-                last_name: 'User'
-            };
-            await authenticateUser(testUser2);
+            // No real Telegram session available (e.g. opened outside
+            // Telegram, or during local development). We can no longer
+            // fabricate a signed-in test user, because the server now
+            // requires a real, Telegram-signed initData string.
+            showError('Please open this app from Telegram');
         }
     } catch (error) {
         console.error('Auth error:', error);
@@ -35,86 +21,38 @@ async function initAuth() {
     }
 }
 
-async function authenticateUser(tgUser) {
+async function authenticateUser() {
     try {
-        console.log('Authenticating user:', tgUser);
+        var result = await callEdgeFunction('telegram-auth', {});
 
-        var result = await db.getUser(tgUser.id);
-        var existingUser = result.data;
-
-        if (existingUser) {
-            currentUser = existingUser;
-
-            if (
-                SUPABASE_CONFIG.adminIds.includes(tgUser.id.toString()) &&
-                !currentUser.is_admin
-            ) {
-                await db.updateUser(tgUser.id, { is_admin: true });
-                currentUser.is_admin = true;
+        if (!result.ok) {
+            if (result.data && result.data.error === 'banned') {
+                currentUser = result.data.user;
+                showToast('Your account has been banned');
+                return;
             }
-
-            await updateUserInfo(existingUser);
-            console.log('Existing user logged in:', existingUser.first_name);
-
-            // Existing user not yet referred → try auto referral from link
-            if (!currentUser.referred_by) {
-                await checkReferralParam();
-            }
-        } else {
-            var isAdmin = SUPABASE_CONFIG.adminIds.includes(tgUser.id.toString());
-
-            var newUser = {
-                telegram_id: tgUser.id,
-                username: tgUser.username || '',
-                first_name: tgUser.first_name || '',
-                last_name: tgUser.last_name || '',
-                balance: 0,
-                total_mined: 0,
-                daily_mined: 0,
-                weekly_mined: 0,
-                monthly_mined: 0,
-                is_admin: isAdmin,
-                created_at: new Date().toISOString()
-            };
-
-            var createResult = await db.createUser(newUser);
-            var createdUser = createResult.data;
-            var createError = createResult.error;
-
-            if (createdUser) {
-                currentUser = createdUser;
-                await updateUserInfo(createdUser);
-                console.log('New user created:', createdUser.first_name);
-
-                // Check if came from referral link
-                var startParam = null;
-                if (
-                    window.Telegram &&
-                    window.Telegram.WebApp &&
-                    window.Telegram.WebApp.initDataUnsafe
-                ) {
-                    startParam = window.Telegram.WebApp.initDataUnsafe.start_param || null;
-                }
-
-                if (startParam && startParam.indexOf('ref_') === 0) {
-                    // Came via referral link → auto apply, no modal
-                    await checkReferralParam();
-                } else {
-                    // No referral link → show modal for manual entry
-                    showReferralModal();
-                }
-            } else {
-                console.error('User creation error:', createError);
-            }
+            console.error('Auth error:', result.data);
+            showError('Authentication failed');
+            return;
         }
 
-        if (currentUser && currentUser.is_admin) {
+        currentUser = result.data.user;
+        await updateUserInfo(currentUser);
+        console.log('Authenticated:', currentUser.first_name);
+
+        if (currentUser.is_admin) {
             showAdminButton();
         }
 
-        if (currentUser && currentUser.is_banned) {
-            showToast('Your account has been banned');
-            return;
+        // Referral: prefer the server-verified start_param over the
+        // client-side Telegram.WebApp.initDataUnsafe value.
+        if (!currentUser.referred_by) {
+            if (result.data.startParam && result.data.startParam.indexOf('ref_') === 0) {
+                var refId = result.data.startParam.replace('ref_', '');
+                await applyReferral(refId, true);
+            } else if (result.data.isNewUser) {
+                showReferralModal();
+            }
         }
     } catch (error) {
         console.error('Authentication error:', error);
@@ -195,6 +133,7 @@ function showAdminButton() {
 async function refreshUserData() {
     try {
         if (!currentUser) return;
+        // Read-only, so this can stay a direct table read.
         var result = await db.getUser(currentUser.telegram_id);
         if (result.data) {
             currentUser = result.data;
