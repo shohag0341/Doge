@@ -83,6 +83,9 @@ function startMiningTimer() {
 }
 
 // ============ AUTO STOP MINING ============
+// SECURITY: reuses claim-mining — by the time this fires, 12h have
+// definitely elapsed (checked server-side too), so it will succeed and
+// pay out the same way a manual claim would.
 async function autoStopMining() {
     try {
         miningActive = false;
@@ -90,37 +93,22 @@ async function autoStopMining() {
         clearInterval(miningTimerInterval);
         miningInterval = null;
         miningTimerInterval = null;
-        
-        // Calculate reward for 12 hours
-        const reward = 12 * miningRate;
-        
-        if (reward > 0) {
-            await db.updateMining(currentUser.telegram_id, reward);
-            
-            await db.createTransaction({
-                user_id: currentUser.telegram_id,
-                type: 'mining',
-                amount: reward,
-                status: 'completed',
-                created_at: new Date().toISOString()
-            });
-        }
-        
+
+        const result = await callEdgeFunction('claim-mining', {});
+
+        const reward = (result.ok && result.data && result.data.reward) || 0;
+
         // Update UI
         document.getElementById('startMiningBtn').innerHTML = '⛏️ Start Mining';
         document.getElementById('miningStatus').textContent = 'Mining finished! Click to start again';
         document.querySelector('.doge-coin').style.animation = 'float 3s ease-in-out infinite';
         document.getElementById('miningProgressBar').style.width = '0%';
-        
-        // Update database
-        await db.updateUser(currentUser.telegram_id, {
-            mining_active: false,
-            mining_start_time: null
-        });
-        
-        showToast(`✅ 12-hour mining complete! +${reward.toFixed(4)} DOGE`);
+
+        if (reward > 0) {
+            showToast(`✅ 12-hour mining complete! +${reward.toFixed(4)} DOGE`);
+        }
         await refreshUserData();
-        
+
     } catch (error) {
         console.error('Auto stop mining error:', error);
     }
@@ -137,37 +125,33 @@ async function toggleMining() {
 }
 
 // ============ START MINING ============
+// SECURITY: mining_active/mining_start_time/mining_rate are now written
+// server-side by the start-mining Edge Function (using the DB clock and
+// a server-computed effective rate), not directly from the browser.
 async function startMining() {
     try {
-        // FIX (খ): always prefer the user's own mining_rate (which
-        // reflects any active package boost) over the plain base rate,
-        // no matter what the global miningRate was last set to.
-        miningRate = (currentUser && currentUser.mining_rate) || baseMiningRate;
+        const result = await callEdgeFunction('start-mining', {});
 
+        if (!result.ok) {
+            const errMsg = (result.data && result.data.error) || 'unknown error';
+            showToast('❌ Could not start mining: ' + errMsg);
+            return;
+        }
+
+        miningRate = result.data.mining_rate;
         miningActive = true;
-        miningStartTime = Date.now();
-        
+        miningStartTime = new Date(result.data.mining_start_time).getTime();
+
         document.getElementById('startMiningBtn').innerHTML = '💰 Claim';
         document.getElementById('miningStatus').textContent = '⛏️ Mining in progress...';
-        
-        // Start mining animation
+
         document.querySelector('.doge-coin').style.animation = 'float 1s ease-in-out infinite';
-        
-        // Start mining interval
+
         miningInterval = setInterval(updateMiningProgress, 1000);
-        
-        // Start timer for auto-stop
         startMiningTimer();
-        
-        // Update mining status in database
-        await db.updateUser(currentUser.telegram_id, {
-            mining_active: true,
-            mining_start_time: new Date().toISOString(),
-            mining_rate: miningRate
-        });
-        
+
         showToast('⛏️ Mining started! Will run for 12 hours');
-        
+
     } catch (error) {
         console.error('Mining start error:', error);
         showToast('❌ Failed to start mining');
@@ -176,25 +160,27 @@ async function startMining() {
 }
 
 // ============ CLAIM MINING ============
-// FIX (ক): claim is now only allowed after the full 12-hour mining
-// duration has passed. Clicking claim earlier no longer pays out a
-// partial reward — it just tells the user how much time is left.
+// FIX (ক) + SECURITY: the 12-hour wait and the reward payout are now
+// both enforced/executed server-side by the claim-mining Edge Function,
+// using the DB's mining_start_time. The client can no longer bypass the
+// wait or forge a reward amount by editing local JS state.
 async function claimMining() {
     try {
         if (!miningActive || !miningStartTime) {
             return;
         }
 
-        const maxMiningTime = 12 * 3600000; // 12 hours in ms
-        const elapsedTime = Date.now() - miningStartTime;
+        const result = await callEdgeFunction('claim-mining', {});
 
-        if (elapsedTime < maxMiningTime) {
-            // Not enough time has passed yet — block the claim
-            const remainingTime = maxMiningTime - elapsedTime;
-            const remainingHours = Math.floor(remainingTime / 3600000);
-            const remainingMinutes = Math.floor((remainingTime % 3600000) / 60000);
-
-            showToast(`⏳ Claim available after 12 hours. Remaining: ${remainingHours}h ${remainingMinutes}m`);
+        if (!result.ok) {
+            if (result.data && result.data.error === 'too_early') {
+                const remainingMs = result.data.remaining_ms || 0;
+                const remainingHours = Math.floor(remainingMs / 3600000);
+                const remainingMinutes = Math.floor((remainingMs % 3600000) / 60000);
+                showToast(`⏳ Claim available after 12 hours. Remaining: ${remainingHours}h ${remainingMinutes}m`);
+                return;
+            }
+            showToast('❌ Failed to claim');
             return;
         }
 
@@ -204,25 +190,8 @@ async function claimMining() {
         miningInterval = null;
         miningTimerInterval = null;
 
-        // Full 12-hour reward (elapsed time is capped at 12h since
-        // autoStopMining() would already have fired at/after this point,
-        // but we cap here too as a safety net)
-        const maxMiningHours = 12;
-        const actualDuration = elapsedTime / 3600000; // Hours
-        const miningDuration = Math.min(actualDuration, maxMiningHours);
-        const reward = miningDuration * miningRate;
-
+        const reward = result.data.reward || 0;
         if (reward > 0) {
-            await db.updateMining(currentUser.telegram_id, reward);
-
-            await db.createTransaction({
-                user_id: currentUser.telegram_id,
-                type: 'mining',
-                amount: reward,
-                status: 'completed',
-                created_at: new Date().toISOString()
-            });
-
             showToast(`✅ Claimed! +${reward.toFixed(4)} DOGE`);
         }
 
@@ -231,12 +200,6 @@ async function claimMining() {
         document.getElementById('miningStatus').textContent = 'Click to start mining';
         document.querySelector('.doge-coin').style.animation = 'float 3s ease-in-out infinite';
         document.getElementById('miningProgressBar').style.width = '0%';
-
-        // Update database
-        await db.updateUser(currentUser.telegram_id, {
-            mining_active: false,
-            mining_start_time: null
-        });
 
         await refreshUserData();
 
@@ -423,22 +386,22 @@ async function submitPackagePurchase(event, packageId, packagePrice) {
 }
 
 // ============ CHECK PACKAGE EXPIRY ============
+// SECURITY: package expiry (mining_rate reset, clearing active_package)
+// is now handled server-side — either by the pg_cron job calling
+// expire_user_packages(), or the next time sync_user_mining_rate() runs
+// (e.g. after a new purchase approval). This function no longer writes
+// to the users table directly; it just refreshes the local view so the
+// UI reflects whatever the server has already computed.
 async function checkPackageExpiry() {
     if (currentUser?.package_expiry) {
         const expiryDate = new Date(currentUser.package_expiry);
         const now = new Date();
-        
+
         if (expiryDate < now) {
-            const { data: settings } = await db.getSettings();
-            await db.updateUser(currentUser.telegram_id, {
-                mining_rate: settings?.base_mining_rate || 0.01,
-                active_package: null,
-                package_expiry: null
-            });
-            
-            showToast('ℹ️ Your package has expired');
             await refreshUserData();
+            if (!currentUser?.active_package) {
+                showToast('ℹ️ Your package has expired');
+            }
         }
     }
-    }
-                                
+}
