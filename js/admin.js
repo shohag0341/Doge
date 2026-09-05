@@ -282,12 +282,15 @@ async function addPackage(event) {
         mining_rate: parseFloat(document.getElementById('pkgRate').value),
         duration_days: parseInt(document.getElementById('pkgDuration').value),
         bonus_doge: parseFloat(document.getElementById('pkgBonus').value) || 0,
-        description: document.getElementById('pkgDesc').value.trim(),
-        is_active: true,
-        created_at: new Date().toISOString()
+        description: document.getElementById('pkgDesc').value.trim()
     };
     try {
-        await db.createPackage(packageData);
+        const result = await callEdgeFunction('admin-manage-packages', { action: 'create', package: packageData });
+        if (!result.ok) {
+            const err = (result.data && result.data.error) || 'unknown error';
+            showToast('❌ Failed to create package: ' + err);
+            return;
+        }
         showToast('✅ Package created');
         loadAdminPackages();
     } catch (error) {
@@ -299,7 +302,12 @@ async function addPackage(event) {
 async function deletePackage(packageId) {
     if (!confirm('Are you sure you want to delete this package?')) return;
     try {
-        await db.deletePackage(packageId);
+        const result = await callEdgeFunction('admin-manage-packages', { action: 'delete', packageId: packageId });
+        if (!result.ok) {
+            const err = (result.data && result.data.error) || 'unknown error';
+            showToast('❌ Failed to delete package: ' + err);
+            return;
+        }
         showToast('✅ Package deleted');
         loadAdminPackages();
     } catch (error) {
@@ -390,24 +398,25 @@ async function addTask(event) {
     const taskType = document.getElementById('taskType').value;
     const chatIdInput = document.getElementById('taskChatId');
     const chatId = chatIdInput ? chatIdInput.value.trim() : null;
-
     if (taskType === 'telegram' && !chatId) {
         showToast('⚠️ Chat ID is required for Telegram tasks');
         return;
     }
-
     const taskData = {
         title: document.getElementById('taskTitle').value.trim(),
         description: document.getElementById('taskDesc').value.trim(),
         reward: parseFloat(document.getElementById('taskReward').value),
         link: document.getElementById('taskLink').value.trim(),
         type: taskType,
-        chat_id: taskType === 'telegram' ? chatId : null,
-        is_active: true,
-        created_at: new Date().toISOString()
+        chat_id: taskType === 'telegram' ? chatId : null
     };
     try {
-        await db.createTask(taskData);
+        const result = await callEdgeFunction('admin-manage-tasks', { action: 'create', task: taskData });
+        if (!result.ok) {
+            const err = (result.data && result.data.error) || 'unknown error';
+            showToast('❌ Failed to create task: ' + err);
+            return;
+        }
         showToast('✅ Task created successfully');
         loadAdminTasks();
     } catch (error) {
@@ -418,7 +427,12 @@ async function addTask(event) {
 async function deleteTask(taskId) {
     if (!confirm('Are you sure you want to delete this task?')) return;
     try {
-        await db.deleteTask(taskId);
+        const result = await callEdgeFunction('admin-manage-tasks', { action: 'delete', taskId: taskId });
+        if (!result.ok) {
+            const err = (result.data && result.data.error) || 'unknown error';
+            showToast('❌ Failed to delete task: ' + err);
+            return;
+        }
         showToast('✅ Task deleted');
         loadAdminTasks();
     } catch (error) {
@@ -501,12 +515,15 @@ async function addWalletAddress(event) {
     event.preventDefault();
     const addressData = {
         network_name: document.getElementById('walletNetwork').value.trim(),
-        address: document.getElementById('walletAddress').value.trim(),
-        is_active: true,
-        created_at: new Date().toISOString()
+        address: document.getElementById('walletAddress').value.trim()
     };
     try {
-        await db.createWalletAddress(addressData);
+        const result = await callEdgeFunction('admin-manage-wallet', { action: 'create', wallet: addressData });
+        if (!result.ok) {
+            const err = (result.data && result.data.error) || 'unknown error';
+            showToast('❌ Failed to add address: ' + err);
+            return;
+        }
         showToast('✅ Address added');
         loadAdminWalletAddresses();
     } catch (error) {
@@ -517,7 +534,12 @@ async function addWalletAddress(event) {
 async function deleteWalletAddress(addressId) {
     if (!confirm('Are you sure you want to delete this address?')) return;
     try {
-        await db.deleteWalletAddress(addressId);
+        const result = await callEdgeFunction('admin-manage-wallet', { action: 'delete', addressId: addressId });
+        if (!result.ok) {
+            const err = (result.data && result.data.error) || 'unknown error';
+            showToast('❌ Failed to delete address: ' + err);
+            return;
+        }
         showToast('✅ Address deleted');
         loadAdminWalletAddresses();
     } catch (error) {
