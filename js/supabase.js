@@ -231,3 +231,42 @@ const db = {
             .eq('id', addressId);
     }
 };
+
+// ============ EDGE FUNCTION HELPER ============
+// All balance/admin-affecting actions now go through Edge Functions
+// (which verify Telegram's initData signature server-side) instead of
+// writing to the users table directly from the browser.
+function getTelegramInitData() {
+    if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) {
+        return window.Telegram.WebApp.initData;
+    }
+    return null;
+}
+
+async function callEdgeFunction(name, body) {
+    body = body || {};
+    const initData = getTelegramInitData();
+
+    if (!initData) {
+        console.error('No Telegram initData available — this action requires opening the app inside Telegram.');
+        return { ok: false, status: 400, data: { error: 'no_init_data' } };
+    }
+
+    try {
+        const resp = await fetch(SUPABASE_CONFIG.url + '/functions/v1/' + name, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + SUPABASE_CONFIG.anonKey,
+                'apikey': SUPABASE_CONFIG.anonKey
+            },
+            body: JSON.stringify(Object.assign({ initData: initData }, body))
+        });
+
+        const data = await resp.json().catch(function () { return {}; });
+        return { ok: resp.ok, status: resp.status, data: data };
+    } catch (error) {
+        console.error('Edge function call failed:', name, error);
+        return { ok: false, status: 0, data: { error: 'network_error' } };
+    }
+}
