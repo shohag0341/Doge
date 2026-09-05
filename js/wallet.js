@@ -74,6 +74,9 @@ async function copyAddress(address) {
 }
 
 // ============ REQUEST WITHDRAW ============
+// SECURITY: minimum withdraw check, fee calculation, balance check,
+// the transaction record, and the balance deduction now all happen
+// server-side in the request-withdraw Edge Function.
 async function requestWithdraw() {
     const address = document.getElementById('withdrawAddress').value.trim();
     const amount = parseFloat(document.getElementById('withdrawAmount').value);
@@ -88,43 +91,22 @@ async function requestWithdraw() {
         showToast('⚠️ Enter a valid amount');
         return;
     }
-    
-    // Get settings for minimum withdraw
-    const { data: settings } = await db.getSettings();
-    const minWithdraw = settings?.min_withdraw || 10;
-    
-    if (amount < minWithdraw) {
-        showToast(`⚠️ Minimum ${minWithdraw} DOGE required`);
-        return;
-    }
-    
-    if (amount > currentUser.balance) {
-        showToast('⚠️ Insufficient balance');
-        return;
-    }
-    
+
     try {
-        // Calculate fee
-        const withdrawFee = settings?.withdraw_fee || 0.5;
-        const fee = (amount * withdrawFee) / 100;
-        const totalDeduction = amount + fee;
-        
-        // Create withdraw request
-        await db.createTransaction({
-            user_id: currentUser.telegram_id,
-            type: 'withdraw',
-            amount: amount,
-            fee: fee,
-            address: address,
-            status: 'pending',
-            created_at: new Date().toISOString()
-        });
-        
-        // Deduct from balance
-        await db.updateUser(currentUser.telegram_id, {
-            balance: currentUser.balance - totalDeduction
-        });
-        
+        const result = await callEdgeFunction('request-withdraw', { address: address, amount: amount });
+
+        if (!result.ok) {
+            const err = (result.data && result.data.error) || 'unknown error';
+            if (err === 'below_minimum') {
+                showToast(`⚠️ Minimum ${result.data.min_withdraw} DOGE required`);
+            } else if (err === 'insufficient_balance') {
+                showToast('⚠️ Insufficient balance');
+            } else {
+                showToast('❌ Error processing withdraw: ' + err);
+            }
+            return;
+        }
+
         showToast('✅ Withdraw request submitted');
         
         // Clear form
