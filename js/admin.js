@@ -307,9 +307,10 @@ async function approvePurchase(requestId) {
 
 async function rejectPurchase(requestId) {
     if (!confirm('Are you sure you want to reject this purchase request?')) return;
+    const reason = prompt('Reason for rejecting (optional, shown to the user):') || '';
 
     try {
-        const result = await callEdgeFunction('admin-reject-purchase', { requestId: requestId });
+        const result = await callEdgeFunction('admin-reject-purchase', { requestId: requestId, reason: reason.trim() });
 
         if (!result.ok) {
             const err = (result.data && result.data.error) || 'unknown error';
@@ -693,6 +694,4 @@ async function updateSettings(event) {
         console.error('Settings update error:', error);
         showToast('❌ Failed to update settings');
     }
-}
-
-        
+    }
