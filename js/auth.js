@@ -40,6 +40,10 @@ async function authenticateUser() {
         await updateUserInfo(currentUser);
         console.log('Authenticated:', currentUser.first_name);
 
+        if (typeof loadReferralExtras === 'function') {
+            loadReferralExtras();
+        }
+
         if (currentUser.is_admin) {
             showAdminButton();
         }
