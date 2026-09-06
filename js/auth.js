@@ -43,18 +43,27 @@ async function authenticateUser() {
         if (typeof loadReferralExtras === 'function') {
             loadReferralExtras();
         }
+        if (typeof updateEnterReferralBox === 'function') {
+            updateEnterReferralBox();
+        }
 
         if (currentUser.is_admin) {
             showAdminButton();
         }
 
         // Referral: prefer the server-verified start_param over the
-        // client-side Telegram.WebApp.initDataUnsafe value.
+        // client-side Telegram.WebApp.initDataUnsafe value. Fall back to
+        // checkReferralParam() (URL/hash-based) for cases where Telegram's
+        // initData didn't carry a start_param but the page URL did.
         if (!currentUser.referred_by) {
             if (result.data.startParam && result.data.startParam.indexOf('ref_') === 0) {
                 var refId = result.data.startParam.replace('ref_', '');
                 await applyReferral(refId, true);
-            } else if (result.data.isNewUser) {
+            } else if (typeof checkReferralParam === 'function') {
+                await checkReferralParam();
+            }
+
+            if (!currentUser.referred_by && result.data.isNewUser) {
                 showReferralModal();
             }
         }
