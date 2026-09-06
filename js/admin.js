@@ -402,9 +402,15 @@ async function addPackage(event) {
             showToast('❌ Failed to create package: ' + err);
             return;
         }
+        showToast('✅ Package created');
+        loadAdminPackages();
+    } catch (error) {
+        console.error('Package creation error:', error);
+        showToast('❌ Failed to create package');
     }
+}
 
-    async function deletePackage(packageId) {
+async function deletePackage(packageId) {
     if (!confirm('Are you sure you want to delete this package?')) return;
     try {
         const result = await callEdgeFunction('admin-manage-packages', { action: 'delete', packageId: packageId });
@@ -687,6 +693,6 @@ async function updateSettings(event) {
         console.error('Settings update error:', error);
         showToast('❌ Failed to update settings');
     }
-                                    }
-    
-    
+}
+
+        
