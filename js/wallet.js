@@ -101,6 +101,8 @@ async function requestWithdraw() {
                 showToast(`⚠️ Minimum ${result.data.min_withdraw} DOGE required`);
             } else if (err === 'insufficient_balance') {
                 showToast('⚠️ Insufficient balance');
+            } else if (err === 'withdraw_already_pending') {
+                showToast('⚠️ You already have a pending withdraw request');
             } else {
                 showToast('❌ Error processing withdraw: ' + err);
             }
@@ -163,6 +165,7 @@ async function loadTransactions() {
                         </div>
                         ${tx.fee > 0 ? `<div style="font-size: 12px; color: var(--text-secondary);">Fee: ${tx.fee} DOGE</div>` : ''}
                         ${tx.address ? `<div style="font-size: 12px; color: var(--text-secondary); word-break: break-all;">To: ${tx.address}</div>` : ''}
+                        ${tx.status === 'rejected' && tx.reason ? `<div style="font-size: 12px; color: var(--danger-color); margin-top: 3px;">Reason: ${tx.reason}</div>` : ''}
                         <small style="color: var(--text-secondary); display: block; margin-top: 5px;">
                             ${new Date(tx.created_at).toLocaleString('en-US')}
                         </small>
