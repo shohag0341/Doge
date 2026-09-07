@@ -169,8 +169,9 @@ function showToast(message) {
     toast.style.cssText =
         'position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);' +
         'background: rgba(0, 0, 0, 0.9); color: white; padding: 12px 20px;' +
-        'border-radius: 25px; font-size: 14px; z-index: 3000;' +
-        'animation: slideUp 0.3s ease; white-space: nowrap; max-width: 90%; text-align: center;';
+        'border-radius: 20px; font-size: 14px; z-index: 3000;' +
+        'animation: slideUp 0.3s ease; text-align: center;' +
+        'max-width: 85vw; width: max-content; white-space: normal; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.4;';
 
     document.body.appendChild(toast);
 
