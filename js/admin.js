@@ -326,6 +326,8 @@ async function rejectPurchase(requestId) {
     }
 }
 
+let adminPackagesCache = [];
+
 async function loadAdminPackages() {
     const adminContent = document.getElementById('adminContent');
     adminContent.innerHTML = '<p>Loading...</p>';
@@ -334,9 +336,11 @@ async function loadAdminPackages() {
         const { data: packages, error } = await db.getPackages();
         if (error) throw error;
 
+        adminPackagesCache = packages || [];
+
         adminContent.innerHTML = `
             <h3>📦 Package Management</h3>
-            <button onclick="showAddPackageForm()" class="btn-primary" style="margin: 10px 0;">➕ New Package</button>
+            <button onclick="showPackageForm()" class="btn-primary" style="margin: 10px 0;">➕ New Package</button>
             <div id="packageList">
                 ${(packages || []).map(pkg => `
                     <div class="address-item">
@@ -347,7 +351,8 @@ async function loadAdminPackages() {
                                 <small>Rate: ${pkg.mining_rate}x | Duration: ${pkg.duration_days} days</small><br>
                                 <small>Bonus: ${pkg.bonus_doge || 0} DOGE</small>
                             </div>
-                            <div>
+                            <div style="display: flex; gap: 6px;">
+                                <button onclick="showPackageForm(${pkg.id})" class="btn-secondary">✏️</button>
                                 <button onclick="deletePackage(${pkg.id})" class="btn-secondary">🗑️</button>
                             </div>
                         </div>
@@ -361,23 +366,25 @@ async function loadAdminPackages() {
     }
 }
 
-function showAddPackageForm() {
+// Pass a packageId to edit an existing package; call with no argument to create a new one.
+function showPackageForm(packageId) {
+    const pkg = packageId ? adminPackagesCache.find(p => p.id === packageId) : null;
     const adminContent = document.getElementById('adminContent');
     adminContent.innerHTML = `
-        <h3>➕ New Package</h3>
-        <form onsubmit="addPackage(event)" style="display: flex; flex-direction: column; gap: 15px; margin-top: 20px;">
-            <input type="text" id="pkgName" placeholder="Package name" required
+        <h3>${pkg ? '✏️ Edit Package' : '➕ New Package'}</h3>
+        <form onsubmit="savePackage(event, ${pkg ? pkg.id : 'null'})" style="display: flex; flex-direction: column; gap: 15px; margin-top: 20px;">
+            <input type="text" id="pkgName" placeholder="Package name" required value="${pkg ? pkg.name : ''}"
                    style="padding: 12px; border: 2px solid #333; border-radius: 10px; background: var(--card-background); color: var(--text-primary);">
-            <input type="number" id="pkgPrice" placeholder="Price ($)" required
+            <input type="number" id="pkgPrice" placeholder="Price ($)" required value="${pkg ? pkg.price : ''}"
                    style="padding: 12px; border: 2px solid #333; border-radius: 10px; background: var(--card-background); color: var(--text-primary);">
-            <input type="number" id="pkgRate" placeholder="Mining rate (x)" step="0.1" required
+            <input type="number" id="pkgRate" placeholder="Mining rate (x)" step="0.1" required value="${pkg ? pkg.mining_rate : ''}"
                    style="padding: 12px; border: 2px solid #333; border-radius: 10px; background: var(--card-background); color: var(--text-primary);">
-            <input type="number" id="pkgDuration" placeholder="Duration (days)" required
+            <input type="number" id="pkgDuration" placeholder="Duration (days)" required value="${pkg ? pkg.duration_days : ''}"
                    style="padding: 12px; border: 2px solid #333; border-radius: 10px; background: var(--card-background); color: var(--text-primary);">
-            <input type="number" id="pkgBonus" placeholder="Bonus DOGE" step="0.01"
+            <input type="number" id="pkgBonus" placeholder="Bonus DOGE" step="0.01" value="${pkg ? (pkg.bonus_doge || 0) : ''}"
                    style="padding: 12px; border: 2px solid #333; border-radius: 10px; background: var(--card-background); color: var(--text-primary);">
             <textarea id="pkgDesc" placeholder="Description"
-                      style="padding: 12px; border: 2px solid #333; border-radius: 10px; background: var(--card-background); color: var(--text-primary);"></textarea>
+                      style="padding: 12px; border: 2px solid #333; border-radius: 10px; background: var(--card-background); color: var(--text-primary);">${pkg ? (pkg.description || '') : ''}</textarea>
             <div style="display: flex; gap: 10px;">
                 <button type="submit" class="btn-primary">Save</button>
                 <button type="button" onclick="loadAdminPackages()" class="btn-secondary">Cancel</button>
@@ -386,7 +393,7 @@ function showAddPackageForm() {
     `;
 }
 
-async function addPackage(event) {
+async function savePackage(event, packageId) {
     event.preventDefault();
     const packageData = {
         name: document.getElementById('pkgName').value.trim(),
@@ -396,18 +403,21 @@ async function addPackage(event) {
         bonus_doge: parseFloat(document.getElementById('pkgBonus').value) || 0,
         description: document.getElementById('pkgDesc').value.trim()
     };
+    const isEdit = packageId !== null && packageId !== undefined;
     try {
-        const result = await callEdgeFunction('admin-manage-packages', { action: 'create', package: packageData });
+        const result = await callEdgeFunction('admin-manage-packages', isEdit
+            ? { action: 'edit', packageId: packageId, package: packageData }
+            : { action: 'create', package: packageData });
         if (!result.ok) {
             const err = (result.data && result.data.error) || 'unknown error';
-            showToast('❌ Failed to create package: ' + err);
+            showToast(`❌ Failed to ${isEdit ? 'update' : 'create'} package: ` + err);
             return;
         }
-        showToast('✅ Package created');
+        showToast(isEdit ? '✅ Package updated' : '✅ Package created');
         loadAdminPackages();
     } catch (error) {
-        console.error('Package creation error:', error);
-        showToast('❌ Failed to create package');
+        console.error('Package save error:', error);
+        showToast(`❌ Failed to ${isEdit ? 'update' : 'create'} package`);
     }
 }
 
@@ -420,7 +430,9 @@ async function deletePackage(packageId) {
             showToast('❌ Failed to delete package: ' + err);
             return;
         }
-        showToast('✅ Package deleted');
+        showToast(result.data && result.data.deactivated
+            ? 'ℹ️ This package has purchase history — it was deactivated instead of deleted'
+            : '✅ Package deleted');
         loadAdminPackages();
     } catch (error) {
         console.error('Package deletion error:', error);
@@ -428,6 +440,8 @@ async function deletePackage(packageId) {
     }
 }
 
+
+let adminTasksCache = [];
 
 async function loadAdminTasks() {
     const adminContent = document.getElementById('adminContent');
@@ -437,9 +451,11 @@ async function loadAdminTasks() {
         const { data: tasks, error } = await db.getTasks();
         if (error) throw error;
 
+        adminTasksCache = tasks || [];
+
         adminContent.innerHTML = `
             <h3>📋 Task Management</h3>
-            <button onclick="showAddTaskForm()" class="btn-primary" style="margin: 10px 0;">➕ New Task</button>
+            <button onclick="showTaskForm()" class="btn-primary" style="margin: 10px 0;">➕ New Task</button>
             <div id="taskList">
                 ${(tasks || []).map(task => `
                     <div class="address-item">
@@ -450,7 +466,8 @@ async function loadAdminTasks() {
                                 ${task.link ? `<br><small>Link: ${task.link}</small>` : ''}
                                 ${task.chat_id ? `<br><small>Chat ID: ${task.chat_id}</small>` : ''}
                             </div>
-                            <div>
+                            <div style="display: flex; gap: 6px;">
+                                <button onclick="showTaskForm(${task.id})" class="btn-secondary">✏️</button>
                                 <button onclick="deleteTask(${task.id})" class="btn-secondary">🗑️</button>
                             </div>
                         </div>
@@ -464,28 +481,30 @@ async function loadAdminTasks() {
     }
 }
 
-function showAddTaskForm() {
+// Pass a taskId to edit an existing task; call with no argument to create a new one.
+function showTaskForm(taskId) {
+    const task = taskId ? adminTasksCache.find(t => t.id === taskId) : null;
     const adminContent = document.getElementById('adminContent');
     adminContent.innerHTML = `
-        <h3>➕ New Task</h3>
-        <form onsubmit="addTask(event)" style="display: flex; flex-direction: column; gap: 15px; margin-top: 20px;">
-            <input type="text" id="taskTitle" placeholder="Task title" required
+        <h3>${task ? '✏️ Edit Task' : '➕ New Task'}</h3>
+        <form onsubmit="saveTask(event, ${task ? task.id : 'null'})" style="display: flex; flex-direction: column; gap: 15px; margin-top: 20px;">
+            <input type="text" id="taskTitle" placeholder="Task title" required value="${task ? task.title : ''}"
                    style="padding: 12px; border: 2px solid #333; border-radius: 10px; background: var(--card-background); color: var(--text-primary);">
             <textarea id="taskDesc" placeholder="Description (optional)"
-                      style="padding: 12px; border: 2px solid #333; border-radius: 10px; background: var(--card-background); color: var(--text-primary);"></textarea>
-            <input type="number" id="taskReward" placeholder="Reward (DOGE)" step="0.01" required
+                      style="padding: 12px; border: 2px solid #333; border-radius: 10px; background: var(--card-background); color: var(--text-primary);">${task ? (task.description || '') : ''}</textarea>
+            <input type="number" id="taskReward" placeholder="Reward (DOGE)" step="0.01" required value="${task ? task.reward : ''}"
                    style="padding: 12px; border: 2px solid #333; border-radius: 10px; background: var(--card-background); color: var(--text-primary);">
             <label style="font-size: 14px; color: var(--text-secondary);">Task Type</label>
             <select id="taskType" onchange="toggleChatIdField()" required
                     style="padding: 12px; border: 2px solid #333; border-radius: 10px; background: var(--card-background); color: var(--text-primary);">
-                <option value="website">🌐 Website Visit</option>
-                <option value="telegram">📢 Telegram Group / Channel</option>
+                <option value="website" ${task && task.type === 'website' ? 'selected' : ''}>🌐 Website Visit</option>
+                <option value="telegram" ${task && task.type === 'telegram' ? 'selected' : ''}>📢 Telegram Group / Channel</option>
             </select>
-            <input type="url" id="taskLink" placeholder="Link (website or t.me/...)" required
+            <input type="url" id="taskLink" placeholder="Link (website or t.me/...)" required value="${task ? (task.link || '') : ''}"
                    style="padding: 12px; border: 2px solid #333; border-radius: 10px; background: var(--card-background); color: var(--text-primary);">
-            <div id="chatIdField" style="display: none;">
+            <div id="chatIdField" style="display: ${task && task.type === 'telegram' ? 'block' : 'none'};">
                 <label style="font-size: 14px; color: var(--text-secondary);">Chat ID (required for Telegram)</label>
-                <input type="text" id="taskChatId" placeholder="@channelusername or -100xxxxxxxxxx"
+                <input type="text" id="taskChatId" placeholder="@channelusername or -100xxxxxxxxxx" value="${task ? (task.chat_id || '') : ''}"
                        style="padding: 12px; border: 2px solid #333; border-radius: 10px; background: var(--card-background); color: var(--text-primary); width: 100%;">
                 <small style="color: var(--text-secondary); font-size: 12px; display: block; margin-top: 6px;">
                     The bot must be an admin in the group/channel. You can get the Chat ID using @userinfobot.
@@ -505,7 +524,7 @@ function toggleChatIdField() {
     if (field) field.style.display = type === 'telegram' ? 'block' : 'none';
 }
 
-async function addTask(event) {
+async function saveTask(event, taskId) {
     event.preventDefault();
     const taskType = document.getElementById('taskType').value;
     const chatIdInput = document.getElementById('taskChatId');
@@ -525,18 +544,21 @@ async function addTask(event) {
         chat_id: taskType === 'telegram' ? chatId : null
     };
 
+    const isEdit = taskId !== null && taskId !== undefined;
     try {
-        const result = await callEdgeFunction('admin-manage-tasks', { action: 'create', task: taskData });
+        const result = await callEdgeFunction('admin-manage-tasks', isEdit
+            ? { action: 'edit', taskId: taskId, task: taskData }
+            : { action: 'create', task: taskData });
         if (!result.ok) {
             const err = (result.data && result.data.error) || 'unknown error';
-            showToast('❌ Failed to create task: ' + err);
+            showToast(`❌ Failed to ${isEdit ? 'update' : 'create'} task: ` + err);
             return;
         }
-        showToast('✅ Task created successfully');
+        showToast(isEdit ? '✅ Task updated' : '✅ Task created successfully');
         loadAdminTasks();
     } catch (error) {
-        console.error('Failed to create task:', error);
-        showToast('❌ Failed to create task');
+        console.error('Task save error:', error);
+        showToast(`❌ Failed to ${isEdit ? 'update' : 'create'} task`);
     }
 }
 
@@ -549,7 +571,9 @@ async function deleteTask(taskId) {
             showToast('❌ Failed to delete task: ' + err);
             return;
         }
-        showToast('✅ Task deleted');
+        showToast(result.data && result.data.deactivated
+            ? 'ℹ️ This task has completion history — it was deactivated instead of deleted'
+            : '✅ Task deleted');
         loadAdminTasks();
     } catch (error) {
         console.error('Task deletion error:', error);
@@ -588,7 +612,7 @@ async function loadAdminSettings() {
                 </form>
                 <h3 style="margin-top: 30px;">💳 USDT Wallet Addresses</h3>
                 <div id="adminWalletAddresses" style="margin-top: 15px;"></div>
-                <button onclick="showAddWalletAddressForm()" class="btn-primary" style="margin: 10px 0;">➕ Add Address</button>
+                <button onclick="showWalletAddressForm()" class="btn-primary" style="margin: 10px 0;">➕ Add Address</button>
             `;
             loadAdminWalletAddresses();
         }
@@ -598,18 +622,25 @@ async function loadAdminSettings() {
     }
 }
 
+let adminWalletCache = [];
+
 async function loadAdminWalletAddresses() {
     try {
         const { data: addresses, error } = await db.getWalletAddresses();
         const container = document.getElementById('adminWalletAddresses');
         if (!container) return;
 
+        adminWalletCache = addresses || [];
+
         if (addresses && addresses.length > 0) {
             container.innerHTML = addresses.map(addr => `
                 <div class="address-item">
                     <strong>${addr.network_name}</strong><br>
                     <small>${addr.address}</small><br>
-                    <button onclick="deleteWalletAddress(${addr.id})" class="btn-secondary" style="margin-top: 5px;">🗑️</button>
+                    <div style="display: flex; gap: 6px; margin-top: 5px;">
+                        <button onclick="showWalletAddressForm(${addr.id})" class="btn-secondary">✏️</button>
+                        <button onclick="deleteWalletAddress(${addr.id})" class="btn-secondary">🗑️</button>
+                    </div>
                 </div>
             `).join('');
         } else {
@@ -620,38 +651,46 @@ async function loadAdminWalletAddresses() {
     }
 }
 
-function showAddWalletAddressForm() {
+// Pass an addressId to edit an existing address; call with no argument to add a new one.
+function showWalletAddressForm(addressId) {
+    const addr = addressId ? adminWalletCache.find(a => a.id === addressId) : null;
     const container = document.getElementById('adminWalletAddresses');
     if (!container) return;
     container.innerHTML = `
-        <form onsubmit="addWalletAddress(event)" style="display: flex; flex-direction: column; gap: 10px;">
-            <input type="text" id="walletNetwork" placeholder="Network name (e.g. BEP20)" required
+        <form onsubmit="saveWalletAddress(event, ${addr ? addr.id : 'null'})" style="display: flex; flex-direction: column; gap: 10px;">
+            <input type="text" id="walletNetwork" placeholder="Network name (e.g. BEP20)" required value="${addr ? addr.network_name : ''}"
                    style="padding: 12px; border: 2px solid #333; border-radius: 10px; background: var(--card-background); color: var(--text-primary);">
-            <input type="text" id="walletAddress" placeholder="USDT address" required
+            <input type="text" id="walletAddress" placeholder="USDT address" required value="${addr ? addr.address : ''}"
                    style="padding: 12px; border: 2px solid #333; border-radius: 10px; background: var(--card-background); color: var(--text-primary);">
-            <button type="submit" class="btn-primary">Save</button>
+            <div style="display: flex; gap: 10px;">
+                <button type="submit" class="btn-primary">Save</button>
+                <button type="button" onclick="loadAdminWalletAddresses()" class="btn-secondary">Cancel</button>
+            </div>
         </form>
     `;
 }
 
-async function addWalletAddress(event) {
+async function saveWalletAddress(event, addressId) {
     event.preventDefault();
     const addressData = {
         network_name: document.getElementById('walletNetwork').value.trim(),
         address: document.getElementById('walletAddress').value.trim()
     };
+    const isEdit = addressId !== null && addressId !== undefined;
     try {
-        const result = await callEdgeFunction('admin-manage-wallet', { action: 'create', wallet: addressData });
+        const result = await callEdgeFunction('admin-manage-wallet', isEdit
+            ? { action: 'edit', addressId: addressId, wallet: addressData }
+            : { action: 'create', wallet: addressData });
         if (!result.ok) {
             const err = (result.data && result.data.error) || 'unknown error';
-            showToast('❌ Failed to add address: ' + err);
+            showToast(`❌ Failed to ${isEdit ? 'update' : 'add'} address: ` + err);
             return;
         }
-        showToast('✅ Address added');
+        showToast(isEdit ? '✅ Address updated' : '✅ Address added');
         loadAdminWalletAddresses();
     } catch (error) {
-        console.error('Wallet address creation error:', error);
-        showToast('❌ Failed to add address');
+        console.error('Wallet address save error:', error);
+        showToast(`❌ Failed to ${isEdit ? 'update' : 'add'} address`);
     }
 }
 
@@ -664,7 +703,9 @@ async function deleteWalletAddress(addressId) {
             showToast('❌ Failed to delete address: ' + err);
             return;
         }
-        showToast('✅ Address deleted');
+        showToast(result.data && result.data.deactivated
+            ? 'ℹ️ This address is referenced elsewhere — it was deactivated instead of deleted'
+            : '✅ Address deleted');
         loadAdminWalletAddresses();
     } catch (error) {
         console.error('Wallet address deletion error:', error);
