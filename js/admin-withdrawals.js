@@ -24,6 +24,7 @@ async function loadAdminWithdrawals() {
                         <strong>${t.users?.first_name || 'User'}</strong>
                         <small>@${t.users?.username || 'N/A'}</small><br>
                         <small>User ID: ${t.user_id}</small><br>
+                        <span style="font-size: 11px; padding: 2px 8px; border-radius: 999px; background: ${t.balance_source === 'deposit' ? 'var(--secondary-color)' : 'var(--primary-color)'}; color: #fff;">${t.balance_source === 'deposit' ? '🎰 Deposit balance' : '⛏️ Mining balance'}</span><br>
                         <strong>${parseFloat(t.amount).toFixed(4)} DOGE</strong>
                         <small>(fee: ${parseFloat(t.fee || 0).toFixed(4)})</small><br>
                         <small style="word-break: break-all;">Address: ${t.address || 'N/A'}</small><br>
