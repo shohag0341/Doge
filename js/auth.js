@@ -95,6 +95,11 @@ function updateUserInfo(user) {
         totalMinedEl.textContent = parseFloat(user.total_mined || 0).toFixed(2) + ' DOGE';
     }
 
+    var depositBalanceEl = document.getElementById('depositBalanceDisplay');
+    if (depositBalanceEl) {
+        depositBalanceEl.textContent = parseFloat(user.deposit_balance || 0).toFixed(2);
+    }
+
     var referralCountEls = document.querySelectorAll('#referralCount');
     for (var i = 0; i < referralCountEls.length; i++) {
         referralCountEls[i].textContent = (user.referral_count || 0) + ' users';
