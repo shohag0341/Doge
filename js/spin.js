@@ -47,7 +47,7 @@ function renderSpinTab() {
             <div class="balance-hero-label"><span class="live-dot"></span> Deposit Balance</div>
             <div class="balance-hero-figure">
                 <span id="depositBalanceDisplay">${depositBalance.toFixed(2)}</span>
-                <span class="balance-hero-unit">DOGE</span>
+                <span class="balance-hero-unit">USDT</span>
             </div>
             <div class="balance-hero-footer">
                 <button onclick="showDepositForm()" class="btn-secondary" style="flex:1; margin-right: 8px; background: rgba(255,255,255,0.15); color: #fff; border-color: rgba(255,255,255,0.3);">➕ Deposit</button>
@@ -59,7 +59,7 @@ function renderSpinTab() {
             <div id="spinWheelSvgContainer"></div>
 
             <div style="margin: 20px 0;">
-                <label style="font-size: 13px; color: var(--text-secondary); display: block; margin-bottom: 8px;">Bet Amount (DOGE)</label>
+                <label style="font-size: 13px; color: var(--text-secondary); display: block; margin-bottom: 8px;">Bet Amount (USDT)</label>
                 <input type="number" id="spinBetAmount" min="${spinConfigData.min_bet}" max="${spinConfigData.max_bet}"
                        step="0.1" value="${spinConfigData.min_bet}"
                        oninput="updatePotentialWinnings()"
@@ -79,6 +79,11 @@ function renderSpinTab() {
         </div>
 
         <div class="mining-container" style="margin-top: 15px;">
+            <h3 style="font-size: 15px; margin-bottom: 10px;">💵 My Deposits</h3>
+            <div id="depositHistoryList"></div>
+        </div>
+
+        <div class="mining-container" style="margin-top: 15px;">
             <h3 style="font-size: 15px; margin-bottom: 10px;">🕓 Recent Spins</h3>
             <div id="spinHistoryList"></div>
         </div>
@@ -87,6 +92,7 @@ function renderSpinTab() {
     renderWheelSVG();
     updatePotentialWinnings();
     loadSpinHistory();
+    loadDepositHistory();
 }
 
 // ============ WHEEL SVG ============
@@ -156,7 +162,7 @@ function updatePotentialWinnings() {
     const maxWinEl = document.getElementById('spinMaxWin');
     if (maxWinEl) {
         maxWinEl.textContent = bet > 0
-            ? `Max possible win: ${(bet * maxMultiplier).toFixed(2)} DOGE`
+            ? `Max possible win: ${(bet * maxMultiplier).toFixed(2)} USDT`
             : '';
     }
 }
@@ -192,7 +198,7 @@ async function performSpin() {
         return;
     }
     if (bet < spinConfigData.min_bet || bet > spinConfigData.max_bet) {
-        showToast(`⚠️ Bet must be between ${spinConfigData.min_bet} and ${spinConfigData.max_bet} DOGE`);
+        showToast(`⚠️ Bet must be between ${spinConfigData.min_bet} and ${spinConfigData.max_bet} USDT`);
         return;
     }
     if (bet > parseFloat((currentUser && currentUser.deposit_balance) || 0)) {
@@ -216,7 +222,7 @@ async function performSpin() {
             } else if (err === 'insufficient_deposit_balance') {
                 showToast('⚠️ Insufficient deposit balance');
             } else if (err === 'bet_out_of_range') {
-                showToast(`⚠️ Bet must be between ${result.data.min_bet} and ${result.data.max_bet} DOGE`);
+                showToast(`⚠️ Bet must be between ${result.data.min_bet} and ${result.data.max_bet} USDT`);
             } else {
                 showToast('❌ Spin failed: ' + err);
             }
@@ -238,7 +244,7 @@ async function performSpin() {
             const net = payout - bet;
 
             if (net > 0) {
-                showToast(`🎉 ${result.data.label}! You won ${payout.toFixed(2)} DOGE!`);
+                showToast(`🎉 ${result.data.label}! You won ${payout.toFixed(2)} USDT!`);
             } else if (net === 0) {
                 showToast(`😐 ${result.data.label} — you broke even.`);
             } else {
@@ -284,7 +290,7 @@ async function loadSpinHistory() {
                 <div class="address-item" style="padding: 12px; margin-bottom: 8px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span>${h.segment_label}</span>
-                        <strong style="color: ${color};">${net >= 0 ? '+' : ''}${net.toFixed(2)} DOGE</strong>
+                        <strong style="color: ${color};">${net >= 0 ? '+' : ''}${net.toFixed(2)} USDT</strong>
                     </div>
                     <small style="color: var(--text-secondary);">Bet: ${parseFloat(h.bet_amount).toFixed(2)} | ${new Date(h.created_at).toLocaleString()}</small>
                 </div>
@@ -292,6 +298,48 @@ async function loadSpinHistory() {
         }).join('');
     } catch (error) {
         console.error('Spin history error:', error);
+    }
+}
+
+// ============ DEPOSIT HISTORY (in-app status, not just Telegram DM) ============
+async function loadDepositHistory() {
+    const container = document.getElementById('depositHistoryList');
+    if (!container || !currentUser) return;
+
+    try {
+        const { data } = await supabase
+            .from('deposit_requests')
+            .select('*')
+            .eq('user_id', currentUser.telegram_id)
+            .order('created_at', { ascending: false })
+            .limit(10);
+
+        if (!data || data.length === 0) {
+            container.innerHTML = '<p style="text-align:center; color: var(--text-secondary); font-size: 13px;">No deposits yet</p>';
+            return;
+        }
+
+        const statusStyle = {
+            pending: { color: 'var(--warning-color)', label: '⏳ Pending' },
+            approved: { color: 'var(--success-color)', label: '✅ Approved' },
+            rejected: { color: 'var(--danger-color)', label: '❌ Rejected' },
+        };
+
+        container.innerHTML = data.map(function (r) {
+            const st = statusStyle[r.status] || { color: 'var(--text-secondary)', label: r.status };
+            return `
+                <div class="address-item" style="padding: 12px; margin-bottom: 8px; border-left: 4px solid ${st.color};">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <strong>${parseFloat(r.amount).toFixed(2)} USDT</strong>
+                        <span style="color: ${st.color}; font-size: 13px; font-weight: 600;">${st.label}</span>
+                    </div>
+                    ${r.status === 'rejected' && r.reason ? `<small style="color: var(--danger-color); display: block; margin-top: 4px;">Reason: ${r.reason}</small>` : ''}
+                    <small style="color: var(--text-secondary);">${new Date(r.created_at).toLocaleString()}</small>
+                </div>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('Deposit history error:', error);
     }
 }
 
@@ -362,13 +410,14 @@ async function submitDepositRequest(event) {
         }
         closeDepositForm();
         showToast('✅ Deposit request submitted! Waiting for admin approval');
+        loadDepositHistory();
     } catch (error) {
         console.error('Deposit submit error:', error);
         showToast('❌ Could not submit deposit');
     }
 }
 
-// ============ DEPOSIT-BALANCE WITHDRAW ============
+   // ============ DEPOSIT-BALANCE WITHDRAW ============
 function showWithdrawDepositForm() {
     const modal = document.createElement('div');
     modal.className = 'modal';
@@ -376,7 +425,7 @@ function showWithdrawDepositForm() {
     modal.innerHTML = `
         <div class="modal-content">
             <h2>📤 Withdraw (Deposit Balance)</h2>
-            <p>Available: ${parseFloat((currentUser && currentUser.deposit_balance) || 0).toFixed(2)} DOGE</p>
+            <p>Available: ${parseFloat((currentUser && currentUser.deposit_balance) || 0).toFixed(2)} USDT</p>
             <input type="text" id="depositWithdrawAddress" placeholder="Wallet Address"
                    style="width: 100%; padding: 12px; margin: 10px 0; border: 1.5px solid #DCEEEA; border-radius: 12px; background: var(--page-background); color: var(--text-primary);">
             <input type="number" id="depositWithdrawAmount" placeholder="Amount"
@@ -408,7 +457,7 @@ async function requestDepositWithdraw() {
         if (!result.ok) {
             const err = (result.data && result.data.error) || 'unknown';
             if (err === 'below_minimum') {
-                showToast(`⚠️ Minimum ${result.data.min_withdraw} DOGE required`);
+                showToast(`⚠️ Minimum ${result.data.min_withdraw} USDT required`);
             } else if (err === 'insufficient_balance') {
                 showToast('⚠️ Insufficient balance');
             } else if (err === 'withdraw_already_pending') {
@@ -428,5 +477,4 @@ async function requestDepositWithdraw() {
         console.error('Deposit withdraw error:', error);
         showToast('❌ Error processing withdraw');
     }
-                             }
-                                            
+}
