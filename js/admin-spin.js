@@ -27,24 +27,24 @@ async function loadAdminSpinSettings() {
 
             <div class="address-item" style="border-left: 4px solid ${profitColor};">
                 <strong>House P&L (all-time, real results)</strong><br>
-                <small>Total Wagered: ${totalWagered.toFixed(2)} DOGE</small><br>
-                <small>Total Paid Out: ${totalPaid.toFixed(2)} DOGE</small><br>
-                <strong style="color: ${profitColor};">Net: ${netProfit >= 0 ? '+' : ''}${netProfit.toFixed(2)} DOGE</strong><br>
+                <small>Total Wagered: ${totalWagered.toFixed(2)} USDT</small><br>
+                <small>Total Paid Out: ${totalPaid.toFixed(2)} USDT</small><br>
+                <strong style="color: ${profitColor};">Net: ${netProfit >= 0 ? '+' : ''}${netProfit.toFixed(2)} USDT</strong><br>
                 <small>Theoretical RTP (current config): ${rtp}% | House edge: ${(100 - rtp).toFixed(2)}%</small>
             </div>
 
             <h4 style="margin-top: 25px;">Bet Limits</h4>
             <form onsubmit="saveSpinConfig(event)" style="display: flex; flex-direction: column; gap: 12px;">
-                <label style="font-size: 13px; color: var(--text-secondary);">Min Bet (DOGE)</label>
+                <label style="font-size: 13px; color: var(--text-secondary);">Min Bet (USDT)</label>
                 <input type="number" id="spinMinBet" value="${config.min_bet}" step="0.1"
                        style="padding: 12px; border: 2px solid #333; border-radius: 10px; background: var(--card-background); color: var(--text-primary);">
-                <label style="font-size: 13px; color: var(--text-secondary);">Max Bet (DOGE)</label>
+                <label style="font-size: 13px; color: var(--text-secondary);">Max Bet (USDT)</label>
                 <input type="number" id="spinMaxBet" value="${config.max_bet}" step="0.1"
                        style="padding: 12px; border: 2px solid #333; border-radius: 10px; background: var(--card-background); color: var(--text-primary);">
                 <label style="font-size: 13px; color: var(--text-secondary);">Cooldown Between Spins (seconds)</label>
                 <input type="number" id="spinCooldown" value="${config.cooldown_seconds}" step="1"
                        style="padding: 12px; border: 2px solid #333; border-radius: 10px; background: var(--card-background); color: var(--text-primary);">
-                <label style="font-size: 13px; color: var(--text-secondary);">Daily Win Cap (optional, DOGE — leave blank for no cap)</label>
+                <label style="font-size: 13px; color: var(--text-secondary);">Daily Win Cap (optional, USDT — leave blank for no cap)</label>
                 <input type="number" id="spinDailyCap" value="${config.daily_win_cap != null ? config.daily_win_cap : ''}" step="0.1"
                        style="padding: 12px; border: 2px solid #333; border-radius: 10px; background: var(--card-background); color: var(--text-primary);">
                 <button type="submit" class="btn-primary">Save Limits</button>
@@ -226,5 +226,4 @@ async function saveSpinConfig(event) {
         console.error('Config save error:', error);
         showToast('❌ Failed to update limits');
     }
-                     }
-
+}
