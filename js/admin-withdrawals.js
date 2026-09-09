@@ -25,7 +25,7 @@ async function loadAdminWithdrawals() {
                         <small>@${t.users?.username || 'N/A'}</small><br>
                         <small>User ID: ${t.user_id}</small><br>
                         <span style="font-size: 11px; padding: 2px 8px; border-radius: 999px; background: ${t.balance_source === 'deposit' ? 'var(--secondary-color)' : 'var(--primary-color)'}; color: #fff;">${t.balance_source === 'deposit' ? '🎰 Deposit balance' : '⛏️ Mining balance'}</span><br>
-                        <strong>${parseFloat(t.amount).toFixed(4)} DOGE</strong>
+                        <strong>${parseFloat(t.amount).toFixed(4)} ${t.balance_source === 'deposit' ? 'USDT' : 'DOGE'}</strong>
                         <small>(fee: ${parseFloat(t.fee || 0).toFixed(4)})</small><br>
                         <small style="word-break: break-all;">Address: ${t.address || 'N/A'}</small><br>
                         <button onclick="copyAddress('${t.address}')" class="btn-secondary" style="padding: 4px 10px; font-size: 11px; margin-top: 4px;">📋 Copy Address</button><br>
@@ -41,7 +41,7 @@ async function loadAdminWithdrawals() {
 
         const renderDone = (t, color) => `
             <div class="address-item" style="border-left: 4px solid ${color}; opacity: 0.85;">
-                <strong>${t.users?.first_name || 'User'}</strong> — ${parseFloat(t.amount).toFixed(4)} DOGE<br>
+                <strong>${t.users?.first_name || 'User'}</strong> — ${parseFloat(t.amount).toFixed(4)} ${t.balance_source === 'deposit' ? 'USDT' : 'DOGE'}<br>
                 <small style="word-break: break-all;">Address: ${t.address || 'N/A'}</small><br>
                 ${t.status === 'rejected' && t.reason ? `<small style="color: var(--danger-color);">Reason: ${t.reason}</small><br>` : ''}
                 <small>${new Date(t.processed_at || t.created_at).toLocaleString()}</small>
