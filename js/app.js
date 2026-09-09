@@ -38,6 +38,9 @@ function showTab(tabName) {
             case 'leaderboard':
                 loadLeaderboard();
                 break;
+            case 'spin':
+                if (typeof loadSpinWheel === 'function') loadSpinWheel();
+                break;
         }
     }
 }
