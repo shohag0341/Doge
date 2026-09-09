@@ -26,6 +26,8 @@ function showAdminTab(tab) {
         case 'tasks': loadAdminTasks(); break;
         case 'requests': loadPurchaseRequests(); break;
         case 'withdrawals': loadAdminWithdrawals(); break;
+        case 'deposits': loadAdminDeposits(); break;
+        case 'spinsettings': loadAdminSpinSettings(); break;
         case 'settings': loadAdminSettings(); break;
     }
 }
