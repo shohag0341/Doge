@@ -139,7 +139,7 @@ function showSpinSegmentForm(segmentId) {
             <input type="number" id="segMultiplier" placeholder="e.g. 2" step="0.1" required value="${seg ? seg.multiplier : ''}"
                    style="${inputStyle}" oninput="updateRtpPreview()">
             <label style="${labelStyle}">Weight (relative probability — bigger = more likely AND bigger slice)</label>
-            <input type="number" id="segWeight" placeholder="e.g. 10" step="0.1" required value="${seg ? seg.weight : ''}"
+            <input type="number" id="segWeight" placeholder="e.g. 10, or 0.0001 for a very rare segment" step="any" min="0.0001" required value="${seg ? seg.weight : ''}"
                    style="${inputStyle}" oninput="updateRtpPreview()">
             <label style="${labelStyle}">Slice Color</label>
             <input type="color" id="segColor" value="${seg ? seg.color : '#14B8A6'}" style="${inputStyle} height: 48px;">
