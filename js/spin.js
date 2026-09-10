@@ -24,14 +24,17 @@ async function loadSpinWheel() {
 }
 
 function computeSegmentAngles(segments) {
-    const totalWeight = segments.reduce((sum, s) => sum + Number(s.weight), 0) || 1;
-    let cursor = 0;
-    return segments.map(seg => {
-        const sliceAngle = 360 * Number(seg.weight) / totalWeight;
-        const start = cursor;
-        const end = cursor + sliceAngle;
-        cursor = end;
-        return Object.assign({}, seg, { startAngle: start, endAngle: end, sliceAngle: sliceAngle });
+    // Visual slices are all equal size — probability is still driven
+    // by each segment's `weight` on the server (spin-wheel Edge
+    // Function), completely independent of how big the slice looks
+    // here. This matches common "wheel of fortune" style games where
+    // the wheel face doesn't reveal the real odds.
+    const n = segments.length || 1;
+    const equalAngle = 360 / n;
+    return segments.map(function (seg, i) {
+        const start = i * equalAngle;
+        const end = start + equalAngle;
+        return Object.assign({}, seg, { startAngle: start, endAngle: end, sliceAngle: equalAngle });
     });
 }
 
@@ -56,6 +59,9 @@ function renderSpinTab() {
         </div>
 
         <div class="mining-container">
+            <div id="spinLiveBalance" style="text-align: center; margin-bottom: 6px; font-size: 17px; font-weight: 700; color: var(--primary-color);">
+                💰 <span id="spinLiveBalanceValue">${depositBalance.toFixed(2)}</span> USDT
+            </div>
             <div id="spinWheelSvgContainer"></div>
 
             <div style="margin: 20px 0;">
@@ -117,31 +123,53 @@ function renderWheelSVG(betAmount) {
     const container = document.getElementById('spinWheelSvgContainer');
     if (!container || spinSegments.length === 0) return;
 
-    const cx = 150, cy = 150, r = 145;
+    const cx = 150, cy = 150, r = 138;
     const bet = betAmount || 0;
+    const n = spinSegments.length;
+    // Smaller font as segment count grows, so labels stay readable.
+    const fontSize = Math.max(9, Math.min(14, 26 - n));
 
     let inner = '';
     spinSegments.forEach(function (seg) {
         const d = describeArc(cx, cy, r, seg.startAngle, seg.endAngle);
         const mid = (seg.startAngle + seg.endAngle) / 2;
-        const labelPos = polarToCartesian(cx, cy, r * 0.62, mid);
+        const labelPos = polarToCartesian(cx, cy, r * 0.64, mid);
         const labelText = bet > 0
             ? (Number(seg.multiplier) > 0 ? (bet * Number(seg.multiplier)).toFixed(1) : 'LOSE')
             : seg.label;
 
-        inner += `<path d="${d}" fill="${seg.color}" stroke="#fff" stroke-width="2"/>`;
-        inner += `<text x="${labelPos.x}" y="${labelPos.y}" fill="#fff" font-size="12" font-weight="700"
+        inner += `<path d="${d}" fill="${seg.color}" stroke="#0B4F49" stroke-width="1.5"/>`;
+        // No rotation transform — text always stays horizontal and readable,
+        // regardless of which way the slice points.
+        inner += `<text x="${labelPos.x}" y="${labelPos.y}" fill="#fff" font-size="${fontSize}" font-weight="700"
                         text-anchor="middle" dominant-baseline="middle"
-                        transform="rotate(${mid}, ${labelPos.x}, ${labelPos.y})">${labelText}</text>`;
+                        style="text-shadow: 0 1px 2px rgba(0,0,0,0.5);">${labelText}</text>`;
     });
 
+    // Decorative "light bulb" dots around the rim, evenly spaced.
+    const bulbCount = 24;
+    let bulbs = '';
+    for (let i = 0; i < bulbCount; i++) {
+        const angle = (360 / bulbCount) * i;
+        const pos = polarToCartesian(cx, cy, r + 9, angle);
+        bulbs += `<circle cx="${pos.x}" cy="${pos.y}" r="3.2" fill="#FFD966" stroke="#8a6d1a" stroke-width="0.5"/>`;
+    }
+
     container.innerHTML = `
-        <div style="position: relative; width: 280px; height: 280px; margin: 10px auto;">
-            <div style="position:absolute; top:-8px; left:50%; transform:translateX(-50%) rotate(180deg); z-index:5; font-size:26px; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3));">🔻</div>
+        <div style="position: relative; width: 290px; height: 290px; margin: 10px auto; padding: 18px;
+                    background: radial-gradient(circle at 50% 40%, #123c38 0%, #04211d 75%);
+                    border-radius: 50%; box-shadow: inset 0 0 30px rgba(0,0,0,0.5);">
+            <div style="position:absolute; top:6px; left:50%; transform:translateX(-50%) rotate(180deg); z-index:5;
+                        font-size:28px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)) drop-shadow(0 0 6px #FFD966);">🔻</div>
             <svg id="spinWheelSvg" viewBox="0 0 300 300"
-                 style="width:100%; height:100%; border-radius:50%; box-shadow: 0 12px 30px -8px rgba(11,79,73,0.5); transform: rotate(${wheelRotation}deg); transition: transform 4.5s cubic-bezier(0.17,0.67,0.12,0.99);">
+                 style="width:100%; height:100%; border-radius:50%;
+                        box-shadow: 0 0 0 6px #B8860B, 0 0 0 9px #FFD966, 0 14px 34px -8px rgba(0,0,0,0.6);
+                        transform: rotate(${wheelRotation}deg); transition: transform 4.5s cubic-bezier(0.17,0.67,0.12,0.99);">
                 ${inner}
-                <circle cx="150" cy="150" r="24" fill="#0B4F49" stroke="#fff" stroke-width="3"/>
+                ${bulbs}
+                <circle cx="150" cy="150" r="22" fill="#B8860B"/>
+                <circle cx="150" cy="150" r="18" fill="#FFD966"/>
+                <text x="150" y="156" font-size="20" text-anchor="middle">🎰</text>
             </svg>
         </div>
     `;
@@ -173,6 +201,16 @@ function setQuickBet(amount) {
     const clamped = Math.max(spinConfigData.min_bet, Math.min(spinConfigData.max_bet, amount));
     betInput.value = clamped.toFixed(2);
     updatePotentialWinnings();
+}
+
+// Keeps the hero card balance AND the live badge next to the wheel in
+// sync, so the user never has to scroll up to see their new balance.
+function updateAllDepositBalanceDisplays(newBalance) {
+    const formatted = parseFloat(newBalance).toFixed(2);
+    const heroEl = document.getElementById('depositBalanceDisplay');
+    if (heroEl) heroEl.textContent = formatted;
+    const liveEl = document.getElementById('spinLiveBalanceValue');
+    if (liveEl) liveEl.textContent = formatted;
 }
 
 // ============ SPIN ACTION ============
@@ -252,8 +290,7 @@ async function performSpin() {
             }
 
             if (currentUser) currentUser.deposit_balance = result.data.new_balance;
-            const balEl = document.getElementById('depositBalanceDisplay');
-            if (balEl) balEl.textContent = parseFloat(result.data.new_balance).toFixed(2);
+            updateAllDepositBalanceDisplays(result.data.new_balance);
 
             loadSpinHistory();
         }, 4700);
@@ -417,7 +454,7 @@ async function submitDepositRequest(event) {
     }
 }
 
-   // ============ DEPOSIT-BALANCE WITHDRAW ============
+// ============ DEPOSIT-BALANCE WITHDRAW ============
 function showWithdrawDepositForm() {
     const modal = document.createElement('div');
     modal.className = 'modal';
@@ -471,8 +508,7 @@ async function requestDepositWithdraw() {
         closeDepositWithdrawForm();
         showToast('✅ Withdraw request submitted');
         await refreshUserData();
-        const balEl = document.getElementById('depositBalanceDisplay');
-        if (balEl && currentUser) balEl.textContent = parseFloat(currentUser.deposit_balance || 0).toFixed(2);
+        if (currentUser) updateAllDepositBalanceDisplays(currentUser.deposit_balance || 0);
     } catch (error) {
         console.error('Deposit withdraw error:', error);
         showToast('❌ Error processing withdraw');
