@@ -12,7 +12,7 @@ async function loadSpinWheel() {
         const { data: config } = await supabase
             .from('spin_config').select('*').eq('id', 1).single();
 
-        spinSegments = computeSegmentAngles(segments || []);
+        spinSegments = computeSegmentAngles(shuffleAndDeclusterSegments(segments || []));
         spinConfigData = config || spinConfigData;
 
         renderSpinTab();
@@ -21,6 +21,36 @@ async function loadSpinWheel() {
         const container = document.getElementById('spinContent');
         if (container) container.innerHTML = '<p style="text-align:center; color: var(--danger-color);">Failed to load spin wheel</p>';
     }
+}
+
+// Randomizes WHERE each segment sits on the wheel face (purely visual —
+// the server still picks the winner by weight, completely independent
+// of position). Also nudges same-label segments apart so identical
+// odds don't all cluster next to each other.
+function shuffleAndDeclusterSegments(segments) {
+    const arr = segments.slice();
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+    }
+
+    const n = arr.length;
+    for (let i = 0; i < n; i++) {
+        const next = (i + 1) % n;
+        if (n > 2 && arr[i].label === arr[next].label) {
+            for (let k = 0; k < n; k++) {
+                if (k === i || k === next) continue;
+                if (arr[k].label === arr[i].label) continue;
+                const prevOfNext = i;
+                const afterK = (k + 1) % n;
+                if (arr[afterK].label !== arr[next].label) {
+                    const tmp = arr[next]; arr[next] = arr[k]; arr[k] = tmp;
+                    break;
+                }
+            }
+        }
+    }
+    return arr;
 }
 
 function computeSegmentAngles(segments) {
@@ -59,9 +89,6 @@ function renderSpinTab() {
         </div>
 
         <div class="mining-container">
-            <div id="spinLiveBalance" style="text-align: center; margin-bottom: 6px; font-size: 17px; font-weight: 700; color: var(--primary-color);">
-                💰 <span id="spinLiveBalanceValue">${depositBalance.toFixed(2)}</span> USDT
-            </div>
             <div id="spinWheelSvgContainer"></div>
 
             <div style="margin: 20px 0;">
@@ -78,7 +105,10 @@ function renderSpinTab() {
                     <button onclick="setQuickBet(${spinConfigData.max_bet})" class="btn-secondary" style="flex:1; padding: 8px;">Max</button>
                 </div>
 
-                <p id="spinMaxWin" style="text-align: center; color: var(--text-secondary); font-size: 13px; margin-top: 10px;"></p>
+                <div id="spinInfoBar" style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding: 10px 14px; background: var(--page-background); border-radius: 12px; font-size: 13px;">
+                    <span style="color: var(--primary-color); font-weight: 700;">💰 <span id="spinLiveBalanceValue">${depositBalance.toFixed(2)}</span> USDT</span>
+                    <span id="spinMaxWin" style="color: var(--text-secondary);"></span>
+                </div>
             </div>
 
             <button id="spinButton" onclick="performSpin()" class="btn-primary big-btn">🎰 SPIN</button>
@@ -190,7 +220,7 @@ function updatePotentialWinnings() {
     const maxWinEl = document.getElementById('spinMaxWin');
     if (maxWinEl) {
         maxWinEl.textContent = bet > 0
-            ? `Max possible win: ${(bet * maxMultiplier).toFixed(2)} USDT`
+            ? `🏆 Max win: ${(bet * maxMultiplier).toFixed(2)} USDT`
             : '';
     }
 }
